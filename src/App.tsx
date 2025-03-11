@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/components/ui/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import Index from "./pages/Index";
+import Index from "./pages/Index"; // This still works because of the index.tsx file
 import Player from "./pages/Player";
 import NotFound from "./pages/NotFound";
 
