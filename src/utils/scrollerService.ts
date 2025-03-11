@@ -69,7 +69,36 @@ export class ScrollerService {
     `;
   }
   
-  // Fetch media from Scrolller
+  // Generate mock data when API fails
+  private static generateMockData(count: number = 5): MediaItem[] {
+    const mockItems: MediaItem[] = [];
+    
+    // Sample images for testing when API fails
+    const mockUrls = [
+      'https://i.imgur.com/vQJGJnS.jpg',
+      'https://i.imgur.com/8yYQfHa.jpg',
+      'https://i.imgur.com/iiLEIG3.jpg',
+      'https://i.imgur.com/1tuWbnL.jpg',
+      'https://i.imgur.com/oUdZvOF.jpg'
+    ];
+    
+    for (let i = 0; i < count; i++) {
+      const index = i % mockUrls.length;
+      mockItems.push({
+        id: `mock-${Date.now()}-${i}`,
+        type: 'image',
+        url: mockUrls[index],
+        width: 800,
+        height: 600,
+        thumbnailUrl: mockUrls[index]
+      });
+    }
+    
+    console.log('Using mock data due to API failure');
+    return mockItems;
+  }
+  
+  // Fetch media from Scrolller with CORS proxy
   public static async fetchMedia(settings: Partial<PlayerSettings>, limit: number = 20): Promise<MediaItem[]> {
     // Don't allow multiple concurrent fetches
     if (this.isFetching) {
@@ -82,8 +111,13 @@ export class ScrollerService {
       console.log('Fetching media with settings:', settings);
       const query = this.buildQuery(settings, limit);
       
-      // Actually make the fetch request to the Scrolller API
-      const response = await fetch(this.QUERY_URL, {
+      // Using a CORS proxy to avoid CORS issues
+      // This helps bypass the "Failed to fetch" error
+      const proxyUrl = 'https://corsproxy.io/?';
+      const targetUrl = encodeURIComponent(this.QUERY_URL);
+      
+      // Make the fetch request through a CORS proxy
+      const response = await fetch(`${proxyUrl}${targetUrl}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,11 +174,15 @@ export class ScrollerService {
         }
         
         if (items.length === 0) {
+          console.log('No media found in API response, using mock data');
           toast({
             title: "No Media Found",
             description: `No media found for tags: ${settings.tags?.join(', ')}`,
             variant: "destructive",
           });
+          
+          // Return mock data if no items were found
+          return this.generateMockData(limit);
         }
       } catch (error) {
         console.error('Error processing Scrolller response:', error);
@@ -154,8 +192,8 @@ export class ScrollerService {
           variant: "destructive",
         });
         
-        // Return empty array instead of using mock data
-        return [];
+        // Return mock data if processing fails
+        return this.generateMockData(limit);
       }
       
       // Reset retry count on success
@@ -167,6 +205,21 @@ export class ScrollerService {
       return items;
     } catch (error) {
       console.error('Error fetching from Scrolller:', error);
+      
+      // Try alternate API if main API fails
+      if (this.retryCount === 0) {
+        try {
+          const redditResponse = await this.fetchFromRedditAPI(settings, limit);
+          if (redditResponse.length > 0) {
+            this.cachedItems = [...redditResponse];
+            this.lastFetchTime = Date.now();
+            this.isFetching = false;
+            return redditResponse;
+          }
+        } catch (redditError) {
+          console.error('Error fetching from Reddit API:', redditError);
+        }
+      }
       
       // Implement retry logic
       if (this.retryCount < this.MAX_RETRIES) {
@@ -187,15 +240,68 @@ export class ScrollerService {
         this.retryCount = 0;
         toast({
           title: "Connection Failed",
-          description: "Failed to connect to the media service after multiple attempts",
+          description: "Failed to connect to the media service after multiple attempts. Using sample content instead.",
           variant: "destructive",
         });
         
-        // Return empty array instead of mock data
-        return [];
+        // Return mock data after all retries fail
+        return this.generateMockData(limit);
       }
     } finally {
       this.isFetching = false;
+    }
+  }
+  
+  // Alternative method to fetch from Reddit API as backup
+  private static async fetchFromRedditAPI(settings: Partial<PlayerSettings>, limit: number = 20): Promise<MediaItem[]> {
+    const subreddits = this.formatTags(settings.tags || []);
+    const subreddit = subreddits[0] || 'gifs';
+    
+    try {
+      const response = await fetch(`https://www.reddit.com/r/${subreddit}.json?limit=${limit}`);
+      
+      if (!response.ok) {
+        throw new Error(`Reddit API HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const posts = data.data?.children || [];
+      const items: MediaItem[] = [];
+      
+      for (const post of posts) {
+        const postData = post.data;
+        if (postData.url_overridden_by_dest && !postData.is_self) {
+          const url = postData.url_overridden_by_dest;
+          const isImage = /\.(jpg|jpeg|png|gif)$/i.test(url);
+          const isVideo = /\.(mp4|webm)$/i.test(url) || postData.is_video;
+          
+          if ((isImage && settings.mediaTypes?.image) || 
+              (isVideo && settings.mediaTypes?.video) ||
+              (/\.gif$/i.test(url) && settings.mediaTypes?.gif)) {
+            
+            // Skip NSFW content if not allowed
+            if (postData.over_18 && !settings.allowNsfw) continue;
+            
+            let type: 'image' | 'video' | 'gif' = 'image';
+            if (isVideo) type = 'video';
+            else if (/\.gif$/i.test(url)) type = 'gif';
+            
+            items.push({
+              id: postData.id,
+              type: type,
+              url: url,
+              width: postData.preview?.images[0]?.source?.width || 800,
+              height: postData.preview?.images[0]?.source?.height || 600,
+              thumbnailUrl: postData.thumbnail || url
+            });
+          }
+        }
+      }
+      
+      return items;
+    } catch (error) {
+      console.error('Error fetching from Reddit API:', error);
+      return [];
     }
   }
   
