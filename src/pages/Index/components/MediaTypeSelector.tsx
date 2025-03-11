@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Switch } from '@/components/ui/switch';
 import { ImageIcon, Film, FileVideo2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { PlayerSettings } from '@/types';
 
 interface MediaTypeSelectorProps {
   mediaTypes: {
@@ -11,7 +12,7 @@ interface MediaTypeSelectorProps {
   };
   allowNsfw: boolean;
   toggleMediaType: (type: 'image' | 'gif' | 'video') => void;
-  updateSetting: <K extends string>(key: K, value: boolean) => void;
+  updateSetting: <K extends keyof PlayerSettings>(key: K, value: PlayerSettings[K]) => void;
 }
 
 const MediaTypeSelector: React.FC<MediaTypeSelectorProps> = ({
@@ -23,7 +24,7 @@ const MediaTypeSelector: React.FC<MediaTypeSelectorProps> = ({
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
-        <Film className="h-3.5 w-3.5 text-purple-400" />
+        <Settings className="h-3.5 w-3.5 text-purple-400" />
         Media Settings
       </h3>
       

@@ -37,8 +37,8 @@ const RangeSlider: React.FC<RangeSliderProps> = ({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="text-xs whitespace-nowrap">{label}</span>
+      <div className="flex items-center gap-2 w-full">
+        <span className="text-xs whitespace-nowrap min-w-20">{label}</span>
         <Slider
           min={min}
           max={max}
@@ -47,7 +47,7 @@ const RangeSlider: React.FC<RangeSliderProps> = ({
           onValueChange={handleSliderChange}
           className="cursor-pointer flex-1 h-4"
         />
-        <span className="text-xs font-medium whitespace-nowrap">
+        <span className="text-xs font-medium whitespace-nowrap min-w-12 text-right">
           {formattedValue}{displayUnit}
         </span>
       </div>

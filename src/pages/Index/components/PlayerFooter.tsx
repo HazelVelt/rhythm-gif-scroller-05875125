@@ -9,9 +9,13 @@ interface PlayerFooterProps {
   onStart: () => void;
 }
 
-const PlayerFooter: React.FC<PlayerFooterProps> = ({ canStart, tagsEmpty, onStart }) => {
+const PlayerFooter: React.FC<PlayerFooterProps> = ({
+  canStart,
+  tagsEmpty,
+  onStart
+}) => {
   return (
-    <div className="flex flex-col gap-3 pt-2 p-4 border-t border-gray-800 bg-gray-900/30">
+    <div className="flex flex-col gap-3 pt-2 p-4 border-t border-gray-800 bg-gray-900/30 w-full">
       {!canStart && (
         <div className="flex items-center text-yellow-400 text-xs gap-1.5 w-full justify-center mb-2">
           <AlertCircle className="h-3.5 w-3.5" />

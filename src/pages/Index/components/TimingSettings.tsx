@@ -2,14 +2,18 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
 import RangeSlider from '@/components/RangeSlider';
+import { PlayerSettings } from '@/types';
 
 interface TimingSettingsProps {
   slideDuration: number;
   minDuration: number;
   maxDuration: number;
   taskTime: number;
-  updateSetting: <K extends string>(key: K, value: number) => void;
+  updateSetting: <K extends keyof PlayerSettings>(key: K, value: PlayerSettings[K]) => void;
 }
+
+// Convert seconds to minutes for display
+const secondsToMinutes = (seconds: number) => Math.round(seconds / 60);
 
 const TimingSettings: React.FC<TimingSettingsProps> = ({
   slideDuration,
@@ -18,9 +22,6 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({
   taskTime,
   updateSetting
 }) => {
-  // Convert seconds to minutes for display
-  const secondsToMinutes = (seconds: number) => Math.round(seconds / 60);
-
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">

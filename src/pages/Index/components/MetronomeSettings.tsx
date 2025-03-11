@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import RangeSlider from '@/components/RangeSlider';
 import Metronome from '@/components/Metronome';
+import { PlayerSettings } from '@/types';
 
 interface MetronomeSettingsProps {
   slowestBpm: number;
   fastestBpm: number;
-  updateSetting: <K extends string>(key: K, value: number) => void;
+  updateSetting: <K extends keyof PlayerSettings>(key: K, value: PlayerSettings[K]) => void;
 }
 
 const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -20,7 +21,7 @@ const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
   const [metronomePreviewBpm, setMetronomePreviewBpm] = useState(80);
   const [isPlayingMetronome, setIsPlayingMetronome] = useState(false);
   
-  // Toggle metronome test playback
+  // Toggle metronome playback
   const toggleMetronome = () => {
     setIsPlayingMetronome(!isPlayingMetronome);
   };
@@ -34,7 +35,7 @@ const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
       setMetronomePreviewBpm(numValue);
     }
   };
-
+  
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
