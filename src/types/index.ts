@@ -16,6 +16,12 @@ export interface PlayerSettings {
   taskTime: number;
   slowestBpm: number;
   fastestBpm: number;
+  mediaTypes: {
+    image: boolean;
+    gif: boolean;
+    video: boolean;
+  };
+  allowNsfw: boolean;
 }
 
 export interface MetronomeState {

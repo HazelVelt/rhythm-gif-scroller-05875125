@@ -94,44 +94,49 @@ const Metronome = ({
       className={`metronome-container ${className} ${variant === 'minimal' ? 'max-w-[100px]' : 'max-w-xs'}`}
     >
       {variant === 'full' && (
-        <div className="text-center mb-2">
-          <div className={`text-2xl font-bold transition-all ${showBeat ? 'text-primary scale-105' : 'text-primary/80'}`}>
+        <div className="text-center mb-1">
+          <div className={`text-xl font-bold transition-all ${showBeat ? 'text-primary scale-105' : 'text-primary/80'}`}>
             {currentBpm} <span className="text-sm font-normal text-muted-foreground">BPM</span>
           </div>
         </div>
       )}
       
-      <div className="relative h-16 flex items-center justify-center">
-        {/* Metronome base */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-3 w-12 bg-secondary rounded-t-sm"></div>
+      <div className="relative h-20 flex items-center justify-center">
+        {/* Metronome base - wooden texture */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-4 w-14 rounded-t-sm bg-gradient-to-r from-[#5D4037] via-[#795548] to-[#5D4037] shadow-md"></div>
+        
+        {/* Metronome body */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 h-3 w-10 bg-gradient-to-r from-[#3E2723] via-[#4E342E] to-[#3E2723] rounded-t-sm"></div>
         
         {/* Metronome needle */}
         <div 
           ref={needleRef}
-          className={`metronome-needle absolute bottom-1 w-0.5 h-14 bg-primary/80 rounded-full 
+          className={`metronome-needle absolute bottom-2 w-[2px] h-16 bg-gradient-to-b from-[#ECEFF1] to-[#B0BEC5] shadow-sm rounded-full 
                      ${isPlaying ? 'animate-metronome-swing' : ''}`}
         >
           {/* Needle weight */}
-          <div className={`absolute -left-2 top-2 w-4 h-4 rounded-full bg-primary 
-                          transition-all duration-150 ${showBeat ? 'scale-110 bg-primary' : 'scale-100 bg-primary/90'}`}>
+          <div className={`absolute -left-[9px] top-2 w-[18px] h-[18px] rounded-full 
+                          bg-gradient-to-br from-[#F44336] to-[#B71C1C] shadow-md border border-[#D32F2F]/30
+                          transition-all duration-150 ${showBeat ? 'scale-110 from-[#FF5252] to-[#D32F2F]' : 'scale-100'}`}>
           </div>
         </div>
         
         {/* Metronome ticks */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-16 h-1 flex justify-between">
-          <div className="w-0.5 h-1 bg-muted-foreground/30"></div>
-          <div className="w-0.5 h-1 bg-muted-foreground/30"></div>
-          <div className="w-0.5 h-1 bg-muted-foreground/30"></div>
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-16 h-1 flex justify-between">
+          <div className="w-0.5 h-1.5 bg-[#D7CCC8]/70"></div>
+          <div className="w-0.5 h-2 bg-[#D7CCC8]/80"></div>
+          <div className="w-0.5 h-1.5 bg-[#D7CCC8]/70"></div>
         </div>
       </div>
       
       {showControls && (
-        <div className="mt-3 flex justify-center">
+        <div className="mt-1 flex justify-center">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={toggleMetronome}
-            className={`glass h-8 w-8 p-0 rounded-full ${isPlaying ? 'bg-secondary/50' : 'bg-primary/10'}`}
+            className={`glass h-8 w-8 p-0 rounded-full transition-all 
+                      ${isPlaying ? 'bg-[#37474F]/50 hover:bg-[#37474F]/70' : 'bg-[#B71C1C]/20 hover:bg-[#B71C1C]/30'}`}
           >
             {isPlaying ? 
               <Pause className="h-4 w-4" /> : 

@@ -39,6 +39,13 @@
     
     --subtle-gradient-start: rgba(30, 30, 35, 0.8);
     --subtle-gradient-end: rgba(25, 25, 30, 0.8);
+    
+    --metronome-wood-dark: #3E2723;
+    --metronome-wood-mid: #5D4037;
+    --metronome-wood-light: #8D6E63;
+    --metronome-needle: #ECEFF1;
+    --metronome-weight: #B71C1C;
+    --metronome-weight-glow: #FF5252;
   }
 }
 
@@ -77,6 +84,18 @@
   
   .focus-ring {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+  
+  .mobile-card {
+    @apply w-full max-w-[95vw] sm:max-w-md mx-auto px-3 py-4;
+  }
+  
+  .toggle-effect {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .handcrafted-shadow {
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.4), -1px -1px 6px rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -126,6 +145,39 @@
 
 @keyframes metronome-beat {
   0% { transform: scale(1); opacity: 0.7; }
-  50% { transform: scale(1.2); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 10px rgba(255, 82, 82, 0.7); }
   100% { transform: scale(1); opacity: 0.7; }
+}
+
+@keyframes metronome-swing {
+  0% { transform: rotate(-25deg); }
+  50% { transform: rotate(25deg); }
+  100% { transform: rotate(-25deg); }
+}
+
+/* Handcrafted wood texture */
+.wood-texture {
+  background-image: 
+    linear-gradient(90deg, 
+      var(--metronome-wood-dark) 0%, 
+      var(--metronome-wood-mid) 20%, 
+      var(--metronome-wood-light) 50%,
+      var(--metronome-wood-mid) 80%,
+      var(--metronome-wood-dark) 100%
+    );
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .mobile-padding {
+    @apply px-2 py-3;
+  }
+  
+  .mobile-text {
+    @apply text-sm;
+  }
+  
+  .mobile-heading {
+    @apply text-base;
+  }
 }
