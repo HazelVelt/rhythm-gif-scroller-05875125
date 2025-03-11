@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import TagInput from '@/components/TagInput';
 import RangeSlider from '@/components/RangeSlider';
 import Metronome from '@/components/Metronome';
@@ -26,7 +27,7 @@ const Index = () => {
     tags: [],
     slideDuration: 5,
     minDuration: 300, // 5 minutes in seconds (5 * 60)
-    maxDuration: 3600, // 1 hour in seconds (60 * 60)
+    maxDuration: 900, // 15 minutes in seconds (15 * 60)
     taskTime: 30,
     slowestBpm: 60,
     fastestBpm: 120,
@@ -39,6 +40,7 @@ const Index = () => {
   });
   
   const [metronomePreviewBpm, setMetronomePreviewBpm] = useState(80);
+  const [manualBpm, setManualBpm] = useState<string>('80');
   
   // Update specific setting
   const updateSetting = <K extends keyof PlayerSettings>(key: K, value: PlayerSettings[K]) => {
@@ -63,12 +65,25 @@ const Index = () => {
     navigate('/player');
   };
   
-  // Calculate random BPM for preview
+  // Randomize BPM for preview
   const randomizeBpm = () => {
     const randomBpm = Math.floor(
       Math.random() * (settings.fastestBpm - settings.slowestBpm + 1)
     ) + settings.slowestBpm;
     setMetronomePreviewBpm(randomBpm);
+  };
+  
+  // Apply manual BPM test
+  const applyManualBpm = () => {
+    const bpm = parseInt(manualBpm);
+    if (!isNaN(bpm) && bpm >= 30 && bpm <= 240) {
+      setMetronomePreviewBpm(bpm);
+    }
+  };
+  
+  // Handle manual BPM input change
+  const handleManualBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setManualBpm(e.target.value);
   };
   
   // Validate if we can start
@@ -79,7 +94,7 @@ const Index = () => {
   const secondsToMinutes = (seconds: number) => Math.round(seconds / 60);
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-3 bg-gradient-to-b from-gray-900 to-black">
+    <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center px-3 py-5 bg-gradient-to-b from-gray-900 to-black overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -87,16 +102,16 @@ const Index = () => {
         className="w-full max-w-sm mx-auto"
       >
         <Card className="overflow-hidden border-0 bg-transparent shadow-none">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-t-xl p-5 border border-gray-700">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-t-xl p-4 border border-gray-700">
             <CardTitle className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
               Rhythm Scroller
             </CardTitle>
             <CardDescription className="text-center text-gray-400 text-sm mt-2">
-              Set your preferences for the visual metronome experience
+              Visual metronome with content from Scrolller
             </CardDescription>
           </div>
           
-          <CardContent className="space-y-5 bg-black/50 backdrop-blur-xl p-5 rounded-b-xl border-x border-b border-gray-800">
+          <CardContent className="space-y-5 bg-black/50 backdrop-blur-xl p-4 rounded-b-xl border-x border-b border-gray-800">
             {/* Tags Section */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -114,7 +129,7 @@ const Index = () => {
                     <TooltipContent>
                       <p className="max-w-xs text-xs">
                         Add tags to define what content you'd like to see. 
-                        Content will be fetched based on these tags.
+                        Content will be fetched from Scrolller based on these tags.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -252,15 +267,6 @@ const Index = () => {
                   <Settings className="h-3.5 w-3.5 text-purple-400" />
                   Metronome Settings
                 </h3>
-                
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={randomizeBpm}
-                  className="h-7 px-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-200"
-                >
-                  Test Random BPM
-                </Button>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -283,13 +289,49 @@ const Index = () => {
                 />
               </div>
               
-              <div className="flex justify-center mt-2">
-                <Metronome bpm={metronomePreviewBpm} />
+              <div className="p-3 bg-gray-900/50 rounded-lg border border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={30}
+                      max={240}
+                      value={manualBpm}
+                      onChange={handleManualBpmChange}
+                      className="w-20 h-8 text-sm bg-gray-800 border-gray-700"
+                    />
+                    <span className="text-xs text-gray-300">BPM</span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={applyManualBpm}
+                      className="h-8 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 border-gray-700"
+                    >
+                      Test
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={randomizeBpm}
+                      className="h-8 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 border-gray-700"
+                    >
+                      Random
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex justify-center">
+                  <Metronome bpm={metronomePreviewBpm} />
+                </div>
               </div>
             </div>
           </CardContent>
           
-          <CardFooter className="flex flex-col gap-3 pt-2 bg-black/50 backdrop-blur-xl p-5 rounded-b-xl border-x border-b border-gray-800">
+          <CardFooter className="flex flex-col gap-3 pt-2 bg-black/50 backdrop-blur-xl p-4 rounded-b-xl border-x border-b border-gray-800">
             {!canStart && (
               <div className="flex items-center text-yellow-400 text-xs gap-1.5 w-full justify-center mb-2">
                 <AlertCircle className="h-3.5 w-3.5" />
@@ -300,7 +342,7 @@ const Index = () => {
             <Button 
               onClick={startPlayer} 
               disabled={!canStart}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 py-5"
             >
               <Play className="mr-2 h-4 w-4" />
               Start Experience
@@ -308,7 +350,7 @@ const Index = () => {
           </CardFooter>
         </Card>
         
-        <div className="text-center mt-4 text-xs text-gray-500">
+        <div className="text-center mt-3 text-xs text-gray-500">
           <p>Content sourced from Scrolller based on your tags</p>
         </div>
       </motion.div>

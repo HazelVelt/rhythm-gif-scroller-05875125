@@ -53,6 +53,9 @@ export class ScrollerService {
                   url
                   width
                   height
+                  preview {
+                    url
+                  }
                 }
               }
             }
@@ -75,17 +78,74 @@ export class ScrollerService {
       console.log('Fetching media with settings:', settings);
       const query = this.buildQuery(settings, limit);
       
-      // In a real app, we would actually make the fetch request here
-      // However, since we're mocking this for demo purposes, let's simulate a response
-      // This is a simulated response that mimics what would come from the real API
-      const mockItems = await this.getMockMediaItems(settings, limit);
+      // Actually make the fetch request to the Scrolller API
+      const response = await fetch(this.QUERY_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      });
       
-      this.cachedItems = [...this.cachedItems, ...mockItems];
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Process the response data
+      const items: MediaItem[] = [];
+      
+      // Extract items from the nested response structure
+      try {
+        const subreddits = data.data?.reddit?.subreddits?.items || [];
+        
+        for (const subreddit of subreddits) {
+          const mediaItems = subreddit.mediaItems?.items || [];
+          
+          for (const item of mediaItems) {
+            if (item.url) {
+              let type: 'image' | 'video' | 'gif' = 'image';
+              
+              // Determine media type based on the API response
+              if (item.type === 'GIF') {
+                type = 'gif';
+              } else if (item.type === 'VIDEO') {
+                type = 'video';
+              }
+              
+              items.push({
+                id: item.id,
+                type: type,
+                url: item.url,
+                width: item.width,
+                height: item.height,
+                thumbnailUrl: item.preview?.url || item.url
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error processing Scrolller response:', error);
+        
+        // Fallback to mock data if we can't process the real data
+        if (items.length === 0) {
+          const mockItems = await this.getMockMediaItems(settings, limit);
+          this.cachedItems = [...this.cachedItems, ...mockItems];
+          return mockItems;
+        }
+      }
+      
+      this.cachedItems = [...this.cachedItems, ...items];
       this.lastFetchTime = Date.now();
-      return mockItems;
+      return items;
     } catch (error) {
       console.error('Error fetching from Scrolller:', error);
-      return [];
+      
+      // Fallback to mock data if the API request fails
+      const mockItems = await this.getMockMediaItems(settings, limit);
+      this.cachedItems = [...this.cachedItems, ...mockItems];
+      return mockItems;
     } finally {
       this.isFetching = false;
     }
@@ -127,7 +187,7 @@ export class ScrollerService {
     return item;
   }
   
-  // For demo purposes only - simulates Scrolller API responses with mock data
+  // For demo and fallback purposes - simulates Scrolller API responses with mock data
   private static async getMockMediaItems(settings: Partial<PlayerSettings>, limit: number): Promise<MediaItem[]> {
     // In a real implementation, we would fetch from the actual API
     // This is just a simulation for demonstration purposes
@@ -164,7 +224,6 @@ export class ScrollerService {
         url: `https://picsum.photos/${width}/${height}?random=${id}&tag=${tag}`,
         width,
         height,
-        // For a real implementation, we would need to handle thumbnails properly
         thumbnailUrl: `https://picsum.photos/100/100?random=${id}&tag=${tag}`
       };
       

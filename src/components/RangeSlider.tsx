@@ -9,7 +9,7 @@ interface RangeSliderProps {
   value: number;
   onChange: (value: number) => void;
   label?: string;
-  displayValue?: number | boolean;
+  displayValue?: number | false;
   displayUnit?: string;
   className?: string;
 }
@@ -41,8 +41,7 @@ const RangeSlider = ({
   // Format display value based on type
   const formattedDisplayValue = (): React.ReactNode => {
     if (displayValue === false) return null;
-    if (displayValue === true) return value;
-    return displayValue;
+    return displayValue === true ? value : displayValue;
   };
 
   return (
