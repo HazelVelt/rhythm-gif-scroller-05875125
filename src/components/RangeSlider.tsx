@@ -9,7 +9,7 @@ interface RangeSliderProps {
   value: number;
   onChange: (value: number) => void;
   label?: string;
-  displayValue?: number | false;
+  displayValue?: number | null;
   displayUnit?: string;
   className?: string;
 }
@@ -21,7 +21,7 @@ const RangeSlider = ({
   value,
   onChange,
   label,
-  displayValue,
+  displayValue = null,
   displayUnit = '',
   className
 }: RangeSliderProps) => {
@@ -40,20 +40,19 @@ const RangeSlider = ({
   
   // Format display value based on type
   const formattedDisplayValue = (): React.ReactNode => {
-    if (displayValue === false) return null;
-    return displayValue !== false ? displayValue : value;
+    return displayValue !== null ? displayValue : value;
   };
 
   return (
     <div className={cn("w-full space-y-2", className)}>
-      {(label || displayValue !== false) && (
+      {(label || displayValue !== null) && (
         <div className="flex justify-between items-center mb-1">
           {label && (
             <label className="text-sm font-medium text-purple-300">
               {label}
             </label>
           )}
-          {displayValue !== false && (
+          {displayValue !== null && (
             <span className="text-sm bg-gray-800 px-2 py-0.5 rounded-md text-gray-200">
               {formattedDisplayValue()}{displayUnit}
             </span>

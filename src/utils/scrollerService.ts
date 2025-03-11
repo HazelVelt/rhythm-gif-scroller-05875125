@@ -1,5 +1,6 @@
 
 import { MediaItem, PlayerSettings } from '../types';
+import { toast } from "@/hooks/use-toast";
 
 export class ScrollerService {
   private static readonly BASE_URL = 'https://api.scrolller.com';
@@ -9,6 +10,8 @@ export class ScrollerService {
   private static cachedItems: MediaItem[] = [];
   private static lastFetchTime: number = 0;
   private static isFetching: boolean = false;
+  private static retryCount: number = 0;
+  private static readonly MAX_RETRIES = 3;
   
   // Convert tags to subreddits
   private static formatTags(tags: string[]): string[] {
@@ -84,14 +87,19 @@ export class ScrollerService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': window.location.origin,
-          'Referer': window.location.origin
+          'User-Agent': 'Mozilla/5.0',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ query }),
       });
       
       if (!response.ok) {
         console.error(`HTTP error: ${response.status}`);
+        toast({
+          title: "API Error",
+          description: `Failed to fetch media: HTTP ${response.status}`,
+          variant: "destructive",
+        });
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
@@ -130,27 +138,62 @@ export class ScrollerService {
             }
           }
         }
+        
+        if (items.length === 0) {
+          toast({
+            title: "No Media Found",
+            description: `No media found for tags: ${settings.tags?.join(', ')}`,
+            variant: "destructive",
+          });
+        }
       } catch (error) {
         console.error('Error processing Scrolller response:', error);
+        toast({
+          title: "Error Processing Media",
+          description: "There was a problem processing the media data",
+          variant: "destructive",
+        });
         
-        // Fallback to mock data if we can't process the real data
-        if (items.length === 0) {
-          const mockItems = await this.getMockMediaItems(settings, limit);
-          this.cachedItems = [...this.cachedItems, ...mockItems];
-          return mockItems;
-        }
+        // Return empty array instead of using mock data
+        return [];
       }
       
-      this.cachedItems = [...this.cachedItems, ...items];
+      // Reset retry count on success
+      this.retryCount = 0;
+      
+      // Update cache with new items
+      this.cachedItems = [...items];
       this.lastFetchTime = Date.now();
       return items;
     } catch (error) {
       console.error('Error fetching from Scrolller:', error);
       
-      // Fallback to mock data if the API request fails
-      const mockItems = await this.getMockMediaItems(settings, limit);
-      this.cachedItems = [...this.cachedItems, ...mockItems];
-      return mockItems;
+      // Implement retry logic
+      if (this.retryCount < this.MAX_RETRIES) {
+        this.retryCount++;
+        this.isFetching = false;
+        
+        toast({
+          title: "Retrying Connection",
+          description: `Attempt ${this.retryCount} of ${this.MAX_RETRIES}`,
+          variant: "default",
+        });
+        
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return this.fetchMedia(settings, limit);
+      } else {
+        // Reset retry count and notify user
+        this.retryCount = 0;
+        toast({
+          title: "Connection Failed",
+          description: "Failed to connect to the media service after multiple attempts",
+          variant: "destructive",
+        });
+        
+        // Return empty array instead of mock data
+        return [];
+      }
     } finally {
       this.isFetching = false;
     }
@@ -172,9 +215,9 @@ export class ScrollerService {
   public static async getNextItem(settings: Partial<PlayerSettings>): Promise<MediaItem | null> {
     // If cache is empty, fetch new items
     if (this.cachedItems.length === 0) {
-      await this.fetchMedia(settings, 20);
+      const items = await this.fetchMedia(settings, 20);
       
-      if (this.cachedItems.length === 0) {
+      if (items.length === 0) {
         return null;
       }
     }
@@ -190,66 +233,5 @@ export class ScrollerService {
     }
     
     return item;
-  }
-  
-  // For demo and fallback purposes - simulates Scrolller API responses with mock data
-  private static async getMockMediaItems(settings: Partial<PlayerSettings>, limit: number): Promise<MediaItem[]> {
-    // In a real implementation, we would fetch from the actual API
-    // This is just a simulation for demonstration purposes
-    
-    // Create some mock keywords based on the tags
-    const keywords = settings.tags?.length ? settings.tags : ['nature', 'landscape', 'abstract'];
-    
-    const items: MediaItem[] = [];
-    const mediaTypes = [];
-    if (settings.mediaTypes?.image) mediaTypes.push('image');
-    if (settings.mediaTypes?.gif) mediaTypes.push('gif');
-    if (settings.mediaTypes?.video) mediaTypes.push('video');
-    
-    // Default to image if nothing selected
-    if (mediaTypes.length === 0) mediaTypes.push('image');
-    
-    // Generate mock items
-    for (let i = 0; i < limit; i++) {
-      const id = `mock-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      const keyword = keywords[Math.floor(Math.random() * keywords.length)];
-      const width = 500 + Math.floor(Math.random() * 500);
-      const height = 500 + Math.floor(Math.random() * 500);
-      
-      // Select a random media type from the allowed types
-      const type = mediaTypes[Math.floor(Math.random() * mediaTypes.length)] as 'image' | 'video' | 'gif';
-      
-      // Consider NSFW setting when generating mock URLs (just for demonstration)
-      const isNsfw = settings.allowNsfw === true;
-      const tag = isNsfw ? `nsfw-${keyword}` : keyword;
-      
-      // For NSFW content, let's use placeholder images that simulate different types of content
-      let url;
-      if (type === 'image') {
-        url = `https://picsum.photos/${width}/${height}?random=${id}`;
-      } else if (type === 'gif') {
-        // For GIFs, use a placeholder that looks more like a GIF
-        url = `https://picsum.photos/${width}/${height}?random=${id}`;
-      } else {
-        // For videos, use a placeholder that looks like a video
-        url = `https://picsum.photos/${width}/${height}?random=${id}`;
-      }
-      
-      const item: MediaItem = {
-        id,
-        type: type,
-        url,
-        width,
-        height,
-        thumbnailUrl: `https://picsum.photos/100/100?random=${id}`
-      };
-      
-      items.push(item);
-    }
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return items;
   }
 }
