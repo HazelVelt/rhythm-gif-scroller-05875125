@@ -8,9 +8,11 @@ import Metronome from '@/components/Metronome';
 import { ScrollerService } from '@/utils/scrollerService';
 import { MetronomeService } from '@/utils/metronomeService';
 import { MediaItem, PlayerSettings } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const Player = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [settings, setSettings] = useState<PlayerSettings | null>(null);
   const [currentMedia, setCurrentMedia] = useState<MediaItem | null>(null);
   const [nextMedia, setNextMedia] = useState<MediaItem | null>(null);
@@ -22,6 +24,7 @@ const Player = () => {
   const mediaTimerRef = useRef<number | null>(null);
   const bpmTimerRef = useRef<number | null>(null);
   const loadingTimeoutRef = useRef<number | null>(null);
+  const previousBpmRef = useRef<number | null>(null);
   
   // Preload images for smoother transitions
   const preloadImage = (url: string): Promise<void> => {
@@ -53,6 +56,7 @@ const Player = () => {
         parsedSettings.fastestBpm
       );
       setCurrentBpm(initialBpm);
+      previousBpmRef.current = initialBpm;
       
       // Show loading indication for at least 1 second
       loadingTimeoutRef.current = window.setTimeout(() => {
@@ -172,6 +176,19 @@ const Player = () => {
         settings.fastestBpm
       );
       setCurrentBpm(newBpm);
+      
+      // Show notification for BPM change
+      const oldBpm = previousBpmRef.current;
+      previousBpmRef.current = newBpm;
+      
+      if (oldBpm !== null) {
+        const direction = newBpm > oldBpm ? "faster" : "slower";
+        toast({
+          title: "BPM Changed",
+          description: `Tempo changed to ${newBpm} BPM (${direction})`,
+          duration: 3000,
+        });
+      }
     }, settings.taskTime * 1000);
     
     // Clean up
@@ -180,7 +197,7 @@ const Player = () => {
         clearTimeout(bpmTimerRef.current);
       }
     };
-  }, [currentBpm, settings]);
+  }, [currentBpm, settings, toast]);
   
   // Exit handler
   const handleExit = () => {

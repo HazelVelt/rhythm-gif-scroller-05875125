@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, AlertCircle, Settings, Info, ImageIcon, Film, FileVideo2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -20,9 +20,11 @@ import TagInput from '@/components/TagInput';
 import RangeSlider from '@/components/RangeSlider';
 import Metronome from '@/components/Metronome';
 import { PlayerSettings } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [settings, setSettings] = useState<PlayerSettings>({
     tags: [],
     slideDuration: 5,
@@ -32,15 +34,16 @@ const Index = () => {
     slowestBpm: 60,
     fastestBpm: 120,
     mediaTypes: {
-      image: true,
+      image: false, // Changed to false by default
       gif: true,
-      video: false
+      video: true // Changed to true by default
     },
-    allowNsfw: false
+    allowNsfw: true // Changed to true by default
   });
   
   const [metronomePreviewBpm, setMetronomePreviewBpm] = useState(80);
   const [manualBpm, setManualBpm] = useState<string>('80');
+  const [isPlayingMetronome, setIsPlayingMetronome] = useState(false);
   
   // Update specific setting
   const updateSetting = <K extends keyof PlayerSettings>(key: K, value: PlayerSettings[K]) => {
@@ -65,25 +68,23 @@ const Index = () => {
     navigate('/player');
   };
   
-  // Randomize BPM for preview
-  const randomizeBpm = () => {
-    const randomBpm = Math.floor(
-      Math.random() * (settings.fastestBpm - settings.slowestBpm + 1)
-    ) + settings.slowestBpm;
-    setMetronomePreviewBpm(randomBpm);
-  };
-  
-  // Apply manual BPM test
-  const applyManualBpm = () => {
+  // Test BPM
+  const testMetronome = () => {
     const bpm = parseInt(manualBpm);
     if (!isNaN(bpm) && bpm >= 30 && bpm <= 240) {
       setMetronomePreviewBpm(bpm);
+      setIsPlayingMetronome(!isPlayingMetronome);
     }
   };
   
   // Handle manual BPM input change
   const handleManualBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setManualBpm(e.target.value);
+    // Immediately update the metronome BPM, but don't start playing
+    const bpm = parseInt(e.target.value);
+    if (!isNaN(bpm) && bpm >= 30 && bpm <= 240) {
+      setMetronomePreviewBpm(bpm);
+    }
   };
   
   // Validate if we can start
@@ -290,42 +291,32 @@ const Index = () => {
               </div>
               
               <div className="p-3 bg-gray-900/50 rounded-lg border border-gray-700">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={30}
-                      max={240}
-                      value={manualBpm}
-                      onChange={handleManualBpmChange}
-                      className="w-20 h-8 text-sm bg-gray-800 border-gray-700"
-                    />
-                    <span className="text-xs text-gray-300">BPM</span>
-                  </div>
+                <div className="flex flex-col items-center mb-3">
+                  <Input
+                    type="number"
+                    min={30}
+                    max={240}
+                    value={manualBpm}
+                    onChange={handleManualBpmChange}
+                    className="w-full h-16 text-4xl text-center font-bold bg-gray-800 border-gray-700 mb-3"
+                  />
                   
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={applyManualBpm}
-                      className="h-8 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 border-gray-700"
-                    >
-                      Test
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={randomizeBpm}
-                      className="h-8 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 border-gray-700"
-                    >
-                      Random
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={testMetronome}
+                    className="w-full py-2 h-auto text-md bg-gray-800 hover:bg-gray-700 border-gray-700"
+                  >
+                    {isPlayingMetronome ? "Stop Test" : "Test BPM"}
+                  </Button>
                 </div>
                 
                 <div className="flex justify-center">
-                  <Metronome bpm={metronomePreviewBpm} />
+                  <Metronome 
+                    bpm={metronomePreviewBpm} 
+                    autoPlay={isPlayingMetronome} 
+                    showControls={false}
+                  />
                 </div>
               </div>
             </div>

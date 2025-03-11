@@ -21,7 +21,7 @@ const RangeSlider = ({
   value,
   onChange,
   label,
-  displayValue = true,
+  displayValue,
   displayUnit = '',
   className
 }: RangeSliderProps) => {
@@ -41,7 +41,7 @@ const RangeSlider = ({
   // Format display value based on type
   const formattedDisplayValue = (): React.ReactNode => {
     if (displayValue === false) return null;
-    return displayValue === true ? value : displayValue;
+    return displayValue !== false ? displayValue : value;
   };
 
   return (

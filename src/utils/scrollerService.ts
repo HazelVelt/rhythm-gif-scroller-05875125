@@ -53,6 +53,7 @@ export class ScrollerService {
                   url
                   width
                   height
+                  isNsfw
                   preview {
                     url
                   }
@@ -83,15 +84,19 @@ export class ScrollerService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Origin': window.location.origin,
+          'Referer': window.location.origin
         },
         body: JSON.stringify({ query }),
       });
       
       if (!response.ok) {
+        console.error(`HTTP error: ${response.status}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Scrolller API response:', data);
       
       // Process the response data
       const items: MediaItem[] = [];
@@ -218,13 +223,25 @@ export class ScrollerService {
       const isNsfw = settings.allowNsfw === true;
       const tag = isNsfw ? `nsfw-${keyword}` : keyword;
       
+      // For NSFW content, let's use placeholder images that simulate different types of content
+      let url;
+      if (type === 'image') {
+        url = `https://picsum.photos/${width}/${height}?random=${id}`;
+      } else if (type === 'gif') {
+        // For GIFs, use a placeholder that looks more like a GIF
+        url = `https://picsum.photos/${width}/${height}?random=${id}`;
+      } else {
+        // For videos, use a placeholder that looks like a video
+        url = `https://picsum.photos/${width}/${height}?random=${id}`;
+      }
+      
       const item: MediaItem = {
         id,
         type: type,
-        url: `https://picsum.photos/${width}/${height}?random=${id}&tag=${tag}`,
+        url,
         width,
         height,
-        thumbnailUrl: `https://picsum.photos/100/100?random=${id}&tag=${tag}`
+        thumbnailUrl: `https://picsum.photos/100/100?random=${id}`
       };
       
       items.push(item);
