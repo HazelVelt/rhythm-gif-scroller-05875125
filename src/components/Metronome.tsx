@@ -8,7 +8,7 @@ interface MetronomeProps {
   bpm: number;
   autoPlay?: boolean;
   showControls?: boolean;
-  variant?: 'minimal' | 'full';
+  variant?: 'minimal' | 'full' | 'compact';
   onBpmChange?: (bpm: number) => void;
   className?: string;
 }
@@ -31,7 +31,6 @@ const Metronome = ({
   } = useMetronome(bpm);
   
   const [showBeat, setShowBeat] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const needleRef = useRef<HTMLDivElement>(null);
   
   // Update BPM if it changes externally
@@ -88,18 +87,80 @@ const Metronome = ({
     }
   };
 
-  return (
-    <div 
-      ref={containerRef}
-      className={`metronome-container ${className} ${variant === 'minimal' ? 'max-w-[100px]' : 'max-w-xs'}`}
-    >
-      {variant === 'full' && (
-        <div className="text-center mb-1">
-          <div className={`text-xl font-bold transition-all ${showBeat ? 'text-primary scale-105' : 'text-primary/80'}`}>
-            {currentBpm} <span className="text-sm font-normal text-muted-foreground">BPM</span>
+  if (variant === 'compact') {
+    return (
+      <div className={`metronome-container inline-flex items-center space-x-2 ${className}`}>
+        <div className={`text-sm font-bold ${showBeat ? 'text-primary scale-105' : 'text-primary/80'}`}>
+          {currentBpm} <span className="text-xs font-normal text-muted-foreground">BPM</span>
+        </div>
+        
+        <div className="relative h-10 w-10">
+          <div 
+            ref={needleRef}
+            className={`metronome-needle absolute bottom-1 left-1/2 -translate-x-1/2 w-[1px] h-8 bg-gradient-to-b from-[#ECEFF1] to-[#B0BEC5] 
+                       ${isPlaying ? 'animate-metronome-swing' : ''}`}
+          >
+            <div className={`absolute -left-[6px] top-1 w-[12px] h-[12px] rounded-full 
+                            bg-gradient-to-br from-[#F44336] to-[#B71C1C] shadow-sm border border-[#D32F2F]/30
+                            transition-all duration-150 ${showBeat ? 'scale-110 from-[#FF5252] to-[#D32F2F]' : 'scale-100'}`}>
+            </div>
           </div>
         </div>
-      )}
+        
+        {showControls && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={toggleMetronome}
+            className="h-6 w-6 p-0 rounded-full"
+          >
+            {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+          </Button>
+        )}
+      </div>
+    );
+  }
+  
+  if (variant === 'minimal') {
+    return (
+      <div className={`metronome-container ${className} max-w-[100px]`}>
+        <div className="relative h-16 flex items-center justify-center">
+          <div 
+            ref={needleRef}
+            className={`metronome-needle absolute bottom-2 w-[2px] h-12 bg-gradient-to-b from-[#ECEFF1] to-[#B0BEC5] shadow-sm rounded-full 
+                       ${isPlaying ? 'animate-metronome-swing' : ''}`}
+          >
+            <div className={`absolute -left-[7px] top-2 w-[14px] h-[14px] rounded-full 
+                            bg-gradient-to-br from-[#F44336] to-[#B71C1C] shadow-md border border-[#D32F2F]/30
+                            transition-all duration-150 ${showBeat ? 'scale-110 from-[#FF5252] to-[#D32F2F]' : 'scale-100'}`}>
+            </div>
+          </div>
+        </div>
+        
+        {showControls && (
+          <div className="mt-1 flex justify-center">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={toggleMetronome}
+              className="h-7 w-7 p-0 rounded-full"
+            >
+              {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Full variant (default)
+  return (
+    <div className={`metronome-container ${className} max-w-xs`}>
+      <div className="text-center mb-1">
+        <div className={`text-xl font-bold transition-all ${showBeat ? 'text-primary scale-105' : 'text-primary/80'}`}>
+          {currentBpm} <span className="text-sm font-normal text-muted-foreground">BPM</span>
+        </div>
+      </div>
       
       <div className="relative h-20 flex items-center justify-center">
         {/* Metronome base - wooden texture */}

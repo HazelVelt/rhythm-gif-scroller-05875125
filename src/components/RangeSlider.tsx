@@ -11,6 +11,7 @@ interface RangeSliderProps {
   label: string;
   displayUnit?: string;
   displayValue?: number;
+  compact?: boolean;
 }
 
 const RangeSlider: React.FC<RangeSliderProps> = ({
@@ -21,7 +22,8 @@ const RangeSlider: React.FC<RangeSliderProps> = ({
   onChange,
   label,
   displayUnit = '',
-  displayValue
+  displayValue,
+  compact = false
 }) => {
   // Handle slider change
   const handleSliderChange = (newValue: number[]) => {
@@ -32,6 +34,25 @@ const RangeSlider: React.FC<RangeSliderProps> = ({
   const formattedValue = typeof displayValue === 'number' 
     ? displayValue 
     : value;
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs whitespace-nowrap">{label}</span>
+        <Slider
+          min={min}
+          max={max}
+          step={step}
+          value={[value]}
+          onValueChange={handleSliderChange}
+          className="cursor-pointer flex-1 h-4"
+        />
+        <span className="text-xs font-medium whitespace-nowrap">
+          {formattedValue}{displayUnit}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">

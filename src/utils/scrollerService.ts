@@ -47,7 +47,7 @@ export class ScrollerService {
     return fallbackItems;
   }
   
-  // Primary method to fetch media from Reddit API
+  // Primary method to fetch media using Scrolller-scraper API
   public static async fetchMedia(settings: Partial<PlayerSettings>, limit: number = 20): Promise<MediaItem[]> {
     // Avoid concurrent fetches
     if (this.isFetching) {
@@ -59,11 +59,179 @@ export class ScrollerService {
     try {
       console.log('Fetching media with settings:', settings);
       
-      // Use Reddit's JSON API directly - more reliable than Scrolller
+      // Use Scrolller-scraper API
       const subreddits = this.formatTags(settings.tags || []);
       const subreddit = subreddits[0] || this.DEFAULT_SUBREDDIT;
       
-      // Try to fetch from Reddit directly
+      // The Scrolller-scraper API endpoint
+      const scrollerAPI = `https://api.scrolller.com/api/v2/graphql`;
+      
+      // The query to get posts from a subreddit
+      const query = {
+        query: `query SubredditQuery($url: String!, $filter: SubredditPostFilter, $iterator: String) {
+          getSubreddit(url: $url) {
+            children(filter: $filter, iterator: $iterator) {
+              iterator
+              items {
+                id
+                __typename
+                ... on Post {
+                  id
+                  title
+                  url
+                  isVideo
+                  mediaSources {
+                    url
+                    width
+                    height
+                  }
+                  thumbnailSources {
+                    url
+                    width
+                    height
+                  }
+                  isFavorite
+                  albumSize
+                  isNsfw
+                }
+              }
+            }
+          }
+        }`,
+        variables: {
+          url: `/r/${subreddit}`,
+          filter: "HOT",
+          iterator: null
+        }
+      };
+      
+      const response = await fetch(scrollerAPI, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(query)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Scrolller API HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const posts = data.data?.getSubreddit?.children?.items || [];
+      const items: MediaItem[] = [];
+      
+      for (const post of posts) {
+        // Skip if not a Post type
+        if (!post || post.__typename !== 'Post') continue;
+        
+        // Skip NSFW content if not allowed
+        if (post.isNsfw && !settings.allowNsfw) continue;
+        
+        const isVideo = post.isVideo;
+        const isGif = !isVideo && post.url?.endsWith('.gif');
+        const isImage = !isVideo && !isGif;
+        const mediaType = isVideo ? 'video' : (isGif ? 'gif' : 'image');
+        
+        // Skip if the mediaType doesn't match user settings
+        if (
+          (mediaType === 'image' && !settings.mediaTypes?.image) || 
+          (mediaType === 'gif' && !settings.mediaTypes?.gif) ||
+          (mediaType === 'video' && !settings.mediaTypes?.video)
+        ) continue;
+        
+        // Get best media source
+        const mediaSource = post.mediaSources && post.mediaSources.length > 0 
+          ? post.mediaSources[0] 
+          : null;
+          
+        // Get best thumbnail source
+        const thumbnailSource = post.thumbnailSources && post.thumbnailSources.length > 0 
+          ? post.thumbnailSources[0] 
+          : null;
+        
+        if (!mediaSource) continue;
+        
+        // Create MediaItem
+        items.push({
+          id: post.id,
+          type: mediaType as 'image' | 'video' | 'gif',
+          url: mediaSource.url || post.url,
+          width: mediaSource.width || 800,
+          height: mediaSource.height || 600,
+          thumbnailUrl: thumbnailSource?.url || mediaSource.url || post.url
+        });
+        
+        // Limit to the requested number
+        if (items.length >= limit) break;
+      }
+      
+      // If we got valid items, reset retry count and update cache
+      if (items.length > 0) {
+        this.retryCount = 0;
+        this.cachedItems = [...items];
+        console.log(`Successfully fetched ${items.length} items from Scrolller`);
+        this.isFetching = false;
+        return items;
+      }
+      
+      // If no items, try the backup method
+      throw new Error('No suitable media items found in Scrolller response');
+      
+    } catch (error) {
+      console.error('Error fetching from Scrolller API:', error);
+      
+      // Try backup method using Reddit directly
+      try {
+        const items = await this.fetchFromReddit(settings, limit);
+        if (items.length > 0) {
+          this.cachedItems = [...items];
+          this.isFetching = false;
+          return items;
+        }
+      } catch (redditError) {
+        console.error('Error fetching from Reddit API:', redditError);
+      }
+      
+      // Implement retry logic
+      if (this.retryCount < this.MAX_RETRIES) {
+        this.retryCount++;
+        this.isFetching = false;
+        
+        toast({
+          title: "Retrying Connection",
+          description: `Attempt ${this.retryCount} of ${this.MAX_RETRIES}`,
+          variant: "default",
+        });
+        
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return this.fetchMedia(settings, limit);
+      } else {
+        // Reset retry count and use fallback
+        this.retryCount = 0;
+        this.isFetching = false;
+        
+        toast({
+          title: "All APIs Failed",
+          description: "Could not fetch content after multiple attempts",
+          variant: "destructive",
+        });
+        
+        return this.generateFallbackItems();
+      }
+    } finally {
+      this.isFetching = false;
+    }
+  }
+  
+  // Backup method using Reddit API directly
+  private static async fetchFromReddit(settings: Partial<PlayerSettings>, limit: number = 20): Promise<MediaItem[]> {
+    const subreddits = this.formatTags(settings.tags || []);
+    const subreddit = subreddits[0] || this.DEFAULT_SUBREDDIT;
+    
+    try {
+      // Use Reddit's JSON API directly
       const response = await fetch(`https://www.reddit.com/r/${subreddit}.json?limit=${limit}&t=day`);
       
       if (!response.ok) {
@@ -113,115 +281,6 @@ export class ScrollerService {
         });
       }
       
-      // If we got valid items, reset retry count and update cache
-      if (items.length > 0) {
-        this.retryCount = 0;
-        this.cachedItems = [...items];
-        console.log(`Successfully fetched ${items.length} items from Reddit`);
-        this.isFetching = false;
-        return items;
-      }
-      
-      // If no items, try the backup method
-      throw new Error('No suitable media items found in Reddit response');
-      
-    } catch (error) {
-      console.error('Error fetching from Reddit API:', error);
-      
-      // Try backup method if first method fails
-      try {
-        const items = await this.fetchFromImgur(settings, limit);
-        if (items.length > 0) {
-          this.cachedItems = [...items];
-          this.isFetching = false;
-          return items;
-        }
-      } catch (imgurError) {
-        console.error('Error fetching from backup source:', imgurError);
-      }
-      
-      // Implement retry logic
-      if (this.retryCount < this.MAX_RETRIES) {
-        this.retryCount++;
-        this.isFetching = false;
-        
-        toast({
-          title: "Retrying Connection",
-          description: `Attempt ${this.retryCount} of ${this.MAX_RETRIES}`,
-          variant: "default",
-        });
-        
-        // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return this.fetchMedia(settings, limit);
-      } else {
-        // Reset retry count and use fallback
-        this.retryCount = 0;
-        this.isFetching = false;
-        return this.generateFallbackItems();
-      }
-    } finally {
-      this.isFetching = false;
-    }
-  }
-  
-  // Backup method using Imgur API
-  private static async fetchFromImgur(settings: Partial<PlayerSettings>, limit: number = 20): Promise<MediaItem[]> {
-    const tags = settings.tags || [];
-    const searchTerm = tags.length > 0 ? tags[0] : 'random';
-    
-    try {
-      // Use a CORS proxy for Imgur API
-      const proxyUrl = 'https://corsproxy.io/?';
-      const targetUrl = encodeURIComponent(`https://api.imgur.com/3/gallery/search/?q=${searchTerm}`);
-      
-      const response = await fetch(`${proxyUrl}${targetUrl}`, {
-        headers: {
-          'Authorization': 'Client-ID 546c25a59c58ad7'  // Public Imgur API client ID
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Imgur API HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const items: MediaItem[] = [];
-      
-      if (data.data && Array.isArray(data.data)) {
-        for (const item of data.data) {
-          // Skip albums, we want single images
-          if (item.is_album || !item.link) continue;
-          
-          const isImage = /\.(jpg|jpeg|png)$/i.test(item.link);
-          const isGif = /\.gif$/i.test(item.link);
-          const isVideo = /\.(mp4|webm)$/i.test(item.link);
-          const mediaType = isGif ? 'gif' : (isVideo ? 'video' : 'image');
-          
-          // Skip if the mediaType doesn't match user settings
-          if (
-            (mediaType === 'image' && !settings.mediaTypes?.image) || 
-            (mediaType === 'gif' && !settings.mediaTypes?.gif) ||
-            (mediaType === 'video' && !settings.mediaTypes?.video)
-          ) continue;
-          
-          // Skip NSFW content if not allowed
-          if (item.nsfw && !settings.allowNsfw) continue;
-          
-          items.push({
-            id: item.id,
-            type: mediaType as 'image' | 'video' | 'gif',
-            url: item.link,
-            width: item.width || 800,
-            height: item.height || 600,
-            thumbnailUrl: item.link
-          });
-          
-          // Limit to the requested number
-          if (items.length >= limit) break;
-        }
-      }
-      
       if (items.length === 0) {
         toast({
           title: "No Content Found",
@@ -232,10 +291,10 @@ export class ScrollerService {
       
       return items;
     } catch (error) {
-      console.error('Error fetching from Imgur:', error);
+      console.error('Error fetching from Reddit:', error);
       toast({
-        title: "Backup API Failed",
-        description: "Failed to load content from backup source.",
+        title: "Reddit API Failed",
+        description: "Failed to load content from Reddit.",
         variant: "destructive",
       });
       return [];

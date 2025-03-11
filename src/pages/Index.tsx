@@ -1,12 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, AlertCircle, Settings, Info, ImageIcon, Film, FileVideo2, Volume2 } from 'lucide-react';
+import { Play, AlertCircle, Settings, ImageIcon, Film, FileVideo2, Volume2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { 
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle
@@ -16,7 +15,6 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import TagInput from '@/components/TagInput';
 import RangeSlider from '@/components/RangeSlider';
@@ -46,7 +44,6 @@ const Index = () => {
   
   const [metronomePreviewBpm, setMetronomePreviewBpm] = useState(80);
   const [isPlayingMetronome, setIsPlayingMetronome] = useState(false);
-  const [activeTab, setActiveTab] = useState("content");
   
   // Update specific setting
   const updateSetting = <K extends keyof PlayerSettings>(key: K, value: PlayerSettings[K]) => {
@@ -116,12 +113,6 @@ const Index = () => {
 
   // Convert seconds to minutes for display
   const secondsToMinutes = (seconds: number) => Math.round(seconds / 60);
-  
-  // Tab animations
-  const tabVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
-  };
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-gray-900 to-black overflow-y-auto">
@@ -136,244 +127,204 @@ const Index = () => {
             <CardTitle className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
               Rhythm Scroller
             </CardTitle>
-            <CardDescription className="text-center text-gray-400 text-sm mt-2">
-              Visual metronome with dynamic content
-            </CardDescription>
           </CardHeader>
           
-          <Tabs defaultValue="content" value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-3 w-full p-1 bg-gray-800/50 border-b border-gray-700">
-              <TabsTrigger value="content" className="text-xs">Content</TabsTrigger>
-              <TabsTrigger value="timing" className="text-xs">Timing</TabsTrigger>
-              <TabsTrigger value="metronome" className="text-xs">Metronome</TabsTrigger>
-            </TabsList>
-            
-            <ScrollArea className="h-[calc(100vh-250px)] max-h-[450px]">
-              <TabsContent value="content" className="p-4 space-y-5 mt-0">
-                <motion.div
-                  variants={tabVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="space-y-5"
-                >
-                  {/* Tags Section */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
-                        <Settings className="h-3.5 w-3.5 text-purple-400" />
-                        Content Tags
-                      </h3>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <Info className="h-3.5 w-3.5 text-gray-400" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs text-xs">
-                              Add subreddit names or topics to find content.
-                              Example: "nature", "gifs", "art"
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    
-                    <TagInput
-                      value={settings.tags}
-                      onChange={(tags) => updateSetting('tags', tags)}
-                      placeholder="Add tags..."
-                      maxTags={5}
-                      className="w-full"
-                      autoFocus
-                    />
-                  </div>
-                  
-                  {/* Media Type & NSFW Toggles */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
-                      <Settings className="h-3.5 w-3.5 text-purple-400" />
-                      Media Settings
-                    </h3>
-                    
-                    <div className="grid grid-cols-2 gap-3 rounded-md glass p-3 bg-gray-900/50 border border-gray-700">
-                      <div className="flex items-center justify-between space-x-2">
-                        <div className="flex items-center space-x-2">
-                          <ImageIcon className="h-4 w-4 text-blue-400" />
-                          <span className="text-xs text-gray-200">Photos</span>
-                        </div>
-                        <Switch 
-                          checked={settings.mediaTypes.image}
-                          onCheckedChange={() => toggleMediaType('image')}
-                          className="data-[state=checked]:bg-blue-500"
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-between space-x-2">
-                        <div className="flex items-center space-x-2">
-                          <Film className="h-4 w-4 text-green-400" />
-                          <span className="text-xs text-gray-200">GIFs</span>
-                        </div>
-                        <Switch 
-                          checked={settings.mediaTypes.gif}
-                          onCheckedChange={() => toggleMediaType('gif')}
-                          className="data-[state=checked]:bg-green-500"
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-between space-x-2">
-                        <div className="flex items-center space-x-2">
-                          <FileVideo2 className="h-4 w-4 text-amber-400" />
-                          <span className="text-xs text-gray-200">Videos</span>
-                        </div>
-                        <Switch 
-                          checked={settings.mediaTypes.video}
-                          onCheckedChange={() => toggleMediaType('video')}
-                          className="data-[state=checked]:bg-amber-500"
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-between space-x-2">
-                        <span className="text-xs text-gray-200">Allow NSFW</span>
-                        <Switch 
-                          checked={settings.allowNsfw}
-                          onCheckedChange={(checked) => updateSetting('allowNsfw', checked)}
-                          className="data-[state=checked]:bg-pink-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </TabsContent>
-              
-              <TabsContent value="timing" className="p-4 space-y-5 mt-0">
-                <motion.div
-                  variants={tabVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="space-y-5"
-                >
+          <ScrollArea className="h-[calc(100vh-250px)] max-h-[450px]">
+            <CardContent className="p-4 space-y-6">
+              {/* Tags Section */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
                     <Settings className="h-3.5 w-3.5 text-purple-400" />
-                    Timing Settings
+                    Content Tags
                   </h3>
-                  
-                  <div className="space-y-4">
-                    <RangeSlider
-                      min={1}
-                      max={15}
-                      step={1}
-                      value={settings.slideDuration}
-                      onChange={(value) => updateSetting('slideDuration', value)}
-                      label="Slide Duration"
-                      displayUnit=" sec"
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <RangeSlider
-                        min={300}
-                        max={settings.maxDuration}
-                        step={60}
-                        value={settings.minDuration}
-                        onChange={(value) => updateSetting('minDuration', value)}
-                        label="Min Duration"
-                        displayUnit=" min"
-                        displayValue={secondsToMinutes(settings.minDuration)}
-                      />
-                      
-                      <RangeSlider
-                        min={settings.minDuration}
-                        max={3600}
-                        step={60}
-                        value={settings.maxDuration}
-                        onChange={(value) => updateSetting('maxDuration', value)}
-                        label="Max Duration"
-                        displayUnit=" min"
-                        displayValue={secondsToMinutes(settings.maxDuration)}
-                      />
+                </div>
+                
+                <TagInput
+                  value={settings.tags}
+                  onChange={(tags) => updateSetting('tags', tags)}
+                  placeholder="Add tags..."
+                  maxTags={5}
+                  className="w-full"
+                  autoFocus
+                />
+              </div>
+              
+              {/* Media Type & NSFW Toggles */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
+                  <Settings className="h-3.5 w-3.5 text-purple-400" />
+                  Media Settings
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-3 rounded-md glass p-3 bg-gray-900/50 border border-gray-700">
+                  <div className="flex items-center justify-between space-x-2">
+                    <div className="flex items-center space-x-2">
+                      <ImageIcon className="h-4 w-4 text-blue-400" />
+                      <span className="text-xs text-gray-200">Photos</span>
                     </div>
-                    
-                    <RangeSlider
-                      min={10}
-                      max={300}
-                      step={5}
-                      value={settings.taskTime}
-                      onChange={(value) => updateSetting('taskTime', value)}
-                      label="Task Time"
-                      displayUnit={settings.taskTime >= 60 ? " min" : " sec"}
-                      displayValue={settings.taskTime >= 60 ? Math.round(settings.taskTime / 60) : settings.taskTime}
+                    <Switch 
+                      checked={settings.mediaTypes.image}
+                      onCheckedChange={() => toggleMediaType('image')}
+                      className="data-[state=checked]:bg-blue-500"
                     />
                   </div>
-                </motion.div>
-              </TabsContent>
-              
-              <TabsContent value="metronome" className="p-4 space-y-5 mt-0">
-                <motion.div
-                  variants={tabVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="space-y-5"
-                >
-                  <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
-                    <Settings className="h-3.5 w-3.5 text-purple-400" />
-                    Metronome Settings
-                  </h3>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <RangeSlider
+                  <div className="flex items-center justify-between space-x-2">
+                    <div className="flex items-center space-x-2">
+                      <Film className="h-4 w-4 text-green-400" />
+                      <span className="text-xs text-gray-200">GIFs</span>
+                    </div>
+                    <Switch 
+                      checked={settings.mediaTypes.gif}
+                      onCheckedChange={() => toggleMediaType('gif')}
+                      className="data-[state=checked]:bg-green-500"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between space-x-2">
+                    <div className="flex items-center space-x-2">
+                      <FileVideo2 className="h-4 w-4 text-amber-400" />
+                      <span className="text-xs text-gray-200">Videos</span>
+                    </div>
+                    <Switch 
+                      checked={settings.mediaTypes.video}
+                      onCheckedChange={() => toggleMediaType('video')}
+                      className="data-[state=checked]:bg-amber-500"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between space-x-2">
+                    <span className="text-xs text-gray-200">Allow NSFW</span>
+                    <Switch 
+                      checked={settings.allowNsfw}
+                      onCheckedChange={(checked) => updateSetting('allowNsfw', checked)}
+                      className="data-[state=checked]:bg-pink-500"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Timing Settings */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
+                  <Settings className="h-3.5 w-3.5 text-purple-400" />
+                  Timing Settings
+                </h3>
+                
+                <div className="space-y-3">
+                  <RangeSlider
+                    min={1}
+                    max={15}
+                    step={1}
+                    value={settings.slideDuration}
+                    onChange={(value) => updateSetting('slideDuration', value)}
+                    label="Slide Duration"
+                    displayUnit=" sec"
+                    compact={true}
+                  />
+                  
+                  <RangeSlider
+                    min={300}
+                    max={settings.maxDuration}
+                    step={60}
+                    value={settings.minDuration}
+                    onChange={(value) => updateSetting('minDuration', value)}
+                    label="Min Duration"
+                    displayUnit=" min"
+                    displayValue={secondsToMinutes(settings.minDuration)}
+                    compact={true}
+                  />
+                  
+                  <RangeSlider
+                    min={settings.minDuration}
+                    max={3600}
+                    step={60}
+                    value={settings.maxDuration}
+                    onChange={(value) => updateSetting('maxDuration', value)}
+                    label="Max Duration"
+                    displayUnit=" min"
+                    displayValue={secondsToMinutes(settings.maxDuration)}
+                    compact={true}
+                  />
+                  
+                  <RangeSlider
+                    min={10}
+                    max={300}
+                    step={5}
+                    value={settings.taskTime}
+                    onChange={(value) => updateSetting('taskTime', value)}
+                    label="Task Time"
+                    displayUnit={settings.taskTime >= 60 ? " min" : " sec"}
+                    displayValue={settings.taskTime >= 60 ? Math.round(settings.taskTime / 60) : settings.taskTime}
+                    compact={true}
+                  />
+                </div>
+              </div>
+              
+              {/* Metronome Settings */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
+                  <Settings className="h-3.5 w-3.5 text-purple-400" />
+                  Metronome Settings
+                </h3>
+                
+                <div className="space-y-3">
+                  <RangeSlider
+                    min={30}
+                    max={settings.fastestBpm}
+                    step={1}
+                    value={settings.slowestBpm}
+                    onChange={(value) => updateSetting('slowestBpm', value)}
+                    label="Slowest BPM"
+                    compact={true}
+                  />
+                  
+                  <RangeSlider
+                    min={settings.slowestBpm}
+                    max={240}
+                    step={1}
+                    value={settings.fastestBpm}
+                    onChange={(value) => updateSetting('fastestBpm', value)}
+                    label="Fastest BPM"
+                    compact={true}
+                  />
+                </div>
+                
+                <div className="p-3 bg-gray-900/50 rounded-lg border border-gray-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <Input
+                      type="number"
                       min={30}
-                      max={settings.fastestBpm}
-                      step={1}
-                      value={settings.slowestBpm}
-                      onChange={(value) => updateSetting('slowestBpm', value)}
-                      label="Slowest BPM"
+                      max={240}
+                      value={metronomePreviewBpm}
+                      onChange={handleBpmChange}
+                      className="w-24 h-9 text-lg text-center font-bold bg-gray-800 border-gray-700"
                     />
                     
-                    <RangeSlider
-                      min={settings.slowestBpm}
-                      max={240}
-                      step={1}
-                      value={settings.fastestBpm}
-                      onChange={(value) => updateSetting('fastestBpm', value)}
-                      label="Fastest BPM"
-                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleMetronome}
+                      className="h-9 px-3 py-0 bg-gray-800 hover:bg-gray-700 border-gray-700 flex items-center justify-center gap-2"
+                    >
+                      {isPlayingMetronome ? "Stop" : "Test"}
+                      <Volume2 className={`h-4 w-4 ${isPlayingMetronome ? 'text-green-400' : 'text-gray-400'}`} />
+                    </Button>
                   </div>
                   
-                  <div className="p-3 bg-gray-900/50 rounded-lg border border-gray-700">
-                    <div className="flex flex-col items-center mb-3">
-                      <Input
-                        type="number"
-                        min={30}
-                        max={240}
-                        value={metronomePreviewBpm}
-                        onChange={handleBpmChange}
-                        className="w-full h-16 text-4xl text-center font-bold bg-gray-800 border-gray-700 mb-3"
-                      />
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={toggleMetronome}
-                        className="w-full py-2 h-auto text-md bg-gray-800 hover:bg-gray-700 border-gray-700 flex items-center justify-center gap-2"
-                      >
-                        {isPlayingMetronome ? "Stop" : "Test BPM"}
-                        <Volume2 className={`h-4 w-4 ${isPlayingMetronome ? 'text-green-400' : 'text-gray-400'}`} />
-                      </Button>
-                    </div>
-                    
-                    <div className="flex justify-center">
-                      <Metronome 
-                        bpm={metronomePreviewBpm} 
-                        autoPlay={isPlayingMetronome} 
-                        showControls={false}
-                      />
-                    </div>
+                  <div className="flex justify-center">
+                    <Metronome 
+                      bpm={metronomePreviewBpm} 
+                      autoPlay={isPlayingMetronome} 
+                      showControls={false}
+                      variant="compact"
+                    />
                   </div>
-                </motion.div>
-              </TabsContent>
-            </ScrollArea>
-          </Tabs>
+                </div>
+              </div>
+            </CardContent>
+          </ScrollArea>
           
           <CardFooter className="flex flex-col gap-3 pt-2 p-4 border-t border-gray-800 bg-gray-900/30">
             {!canStart && (
@@ -393,7 +344,7 @@ const Index = () => {
             </Button>
             
             <div className="text-center text-xs text-gray-500 mt-1">
-              <p>Content sourced from Reddit based on your tags</p>
+              <p>Content sourced based on your tags</p>
             </div>
           </CardFooter>
         </Card>
