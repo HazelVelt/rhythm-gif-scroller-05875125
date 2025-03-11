@@ -79,7 +79,7 @@ const Player = () => {
     const loadInitialMedia = async () => {
       try {
         // Load current and next media items
-        const firstItem = await ScrollerService.getNextItem(settings.tags);
+        const firstItem = await ScrollerService.getNextItem(settings);
         
         if (firstItem) {
           // Preload the image
@@ -92,7 +92,7 @@ const Player = () => {
           setCurrentMedia(firstItem);
           
           // Start loading the next item immediately
-          const secondItem = await ScrollerService.getNextItem(settings.tags);
+          const secondItem = await ScrollerService.getNextItem(settings);
           if (secondItem && secondItem.url) {
             preloadImage(secondItem.url).catch(() => {
               console.warn('Failed to preload next image:', secondItem.url);
@@ -128,7 +128,7 @@ const Player = () => {
         setNextMedia(null);
         
         // Start loading the next item
-        const newNextItem = await ScrollerService.getNextItem(settings.tags);
+        const newNextItem = await ScrollerService.getNextItem(settings);
         if (newNextItem && newNextItem.url) {
           preloadImage(newNextItem.url).catch(() => {
             console.warn('Failed to preload next image:', newNextItem.url);
@@ -137,12 +137,12 @@ const Player = () => {
         setNextMedia(newNextItem);
       } else {
         // If next item isn't ready yet, load a new one
-        const newItem = await ScrollerService.getNextItem(settings.tags);
+        const newItem = await ScrollerService.getNextItem(settings);
         if (newItem) {
           setCurrentMedia(newItem);
           
           // Start loading the next item
-          const newNextItem = await ScrollerService.getNextItem(settings.tags);
+          const newNextItem = await ScrollerService.getNextItem(settings);
           setNextMedia(newNextItem);
         }
       }
@@ -200,10 +200,10 @@ const Player = () => {
   // Render loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
         <div className="text-center">
-          <div className="animate-pulse-subtle inline-block h-12 w-12 rounded-full border-2 border-t-primary border-r-transparent border-l-transparent border-b-transparent animate-spin"></div>
-          <p className="mt-4 text-muted-foreground">Preparing your experience...</p>
+          <div className="animate-pulse-subtle inline-block h-12 w-12 rounded-full border-2 border-t-purple-500 border-r-transparent border-l-transparent border-b-transparent animate-spin"></div>
+          <p className="mt-4 text-purple-300">Preparing your experience...</p>
         </div>
       </div>
     );
@@ -212,14 +212,14 @@ const Player = () => {
   // Render error state
   if (errorMessage) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-gray-900 to-black">
         <div className="text-center max-w-md mx-auto">
-          <div className="mb-6 text-destructive">
+          <div className="mb-6 text-pink-500">
             <X className="h-12 w-12 mx-auto" />
           </div>
-          <h2 className="text-xl font-semibold mb-2">Error</h2>
-          <p className="text-muted-foreground mb-6">{errorMessage}</p>
-          <Button onClick={() => navigate('/')}>
+          <h2 className="text-xl font-semibold mb-2 text-white">Error</h2>
+          <p className="text-gray-400 mb-6">{errorMessage}</p>
+          <Button onClick={() => navigate('/')} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0">
             Return to Settings
           </Button>
         </div>
@@ -228,14 +228,14 @@ const Player = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col overflow-hidden relative">
+    <div className="min-h-screen flex flex-col overflow-hidden relative bg-black">
       {/* Exit button */}
       <div className="absolute top-4 right-4 z-20">
         <Button 
           variant="secondary" 
           size="icon" 
           onClick={handleExit}
-          className="glass h-10 w-10 rounded-full bg-black/30 backdrop-blur-md"
+          className="glass h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
         >
           <X className="h-5 w-5" />
         </Button>
@@ -247,7 +247,7 @@ const Player = () => {
           variant="secondary" 
           size="icon" 
           onClick={toggleSound}
-          className="glass h-10 w-10 rounded-full bg-black/30 backdrop-blur-md"
+          className="glass h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
         >
           {isMuted ? 
             <VolumeX className="h-5 w-5" /> : 
@@ -266,7 +266,7 @@ const Player = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
-              className="absolute inset-0 flex items-center justify-center bg-background"
+              className="absolute inset-0 flex items-center justify-center bg-black"
             >
               {currentMedia.type === 'video' ? (
                 <video
@@ -290,7 +290,7 @@ const Player = () => {
       
       {/* Metronome fixed at bottom */}
       <div className="fixed bottom-0 left-0 right-0 py-4 z-10">
-        <div className="glass max-w-lg mx-auto rounded-full py-3 px-6">
+        <div className="glass max-w-lg mx-auto rounded-full py-3 px-6 bg-black/70 backdrop-blur-md border border-gray-800">
           <Metronome 
             bpm={currentBpm} 
             autoPlay={true} 

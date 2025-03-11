@@ -32,6 +32,9 @@ export class ScrollerService {
     // If no media types are selected, default to IMAGE
     const mediaTypesStr = JSON.stringify(mediaTypes.length > 0 ? mediaTypes : ['IMAGE']);
     
+    // Use the allowNsfw setting from the settings
+    const isNsfw = settings.allowNsfw === true;
+    
     return `
       query {
         reddit {
@@ -41,7 +44,7 @@ export class ScrollerService {
                 first: ${limit}
                 mediaType: ${mediaTypesStr}
                 filter: { 
-                  isNsfw: ${settings.allowNsfw ? "true" : "false"}
+                  isNsfw: ${isNsfw}
                 }
               ) {
                 items {
@@ -149,16 +152,20 @@ export class ScrollerService {
       const height = 500 + Math.floor(Math.random() * 500);
       
       // Select a random media type from the allowed types
-      const type = mediaTypes[Math.floor(Math.random() * mediaTypes.length)];
+      const type = mediaTypes[Math.floor(Math.random() * mediaTypes.length)] as 'image' | 'video' | 'gif';
+      
+      // Consider NSFW setting when generating mock URLs (just for demonstration)
+      const isNsfw = settings.allowNsfw === true;
+      const tag = isNsfw ? `nsfw-${keyword}` : keyword;
       
       const item: MediaItem = {
         id,
-        type: type as 'image' | 'video' | 'gif',
-        url: `https://picsum.photos/${width}/${height}?random=${id}`,
+        type: type,
+        url: `https://picsum.photos/${width}/${height}?random=${id}&tag=${tag}`,
         width,
         height,
         // For a real implementation, we would need to handle thumbnails properly
-        thumbnailUrl: `https://picsum.photos/100/100?random=${id}`
+        thumbnailUrl: `https://picsum.photos/100/100?random=${id}&tag=${tag}`
       };
       
       items.push(item);

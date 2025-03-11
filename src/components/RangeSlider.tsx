@@ -9,7 +9,7 @@ interface RangeSliderProps {
   value: number;
   onChange: (value: number) => void;
   label?: string;
-  displayValue?: boolean;
+  displayValue?: number | boolean;
   displayUnit?: string;
   className?: string;
 }
@@ -37,19 +37,26 @@ const RangeSlider = ({
       rangeRef.current.style.setProperty('--range-progress', `${percentage}%`);
     }
   }, [percentage]);
+  
+  // Format display value based on type
+  const formattedDisplayValue = (): React.ReactNode => {
+    if (displayValue === false) return null;
+    if (displayValue === true) return value;
+    return displayValue;
+  };
 
   return (
     <div className={cn("w-full space-y-2", className)}>
-      {(label || displayValue) && (
+      {(label || displayValue !== false) && (
         <div className="flex justify-between items-center mb-1">
           {label && (
-            <label className="text-sm font-medium text-muted-foreground">
+            <label className="text-sm font-medium text-purple-300">
               {label}
             </label>
           )}
-          {displayValue && (
-            <span className="text-sm bg-secondary px-2 py-0.5 rounded-md text-secondary-foreground">
-              {value}{displayUnit}
+          {displayValue !== false && (
+            <span className="text-sm bg-gray-800 px-2 py-0.5 rounded-md text-gray-200">
+              {formattedDisplayValue()}{displayUnit}
             </span>
           )}
         </div>
@@ -63,21 +70,21 @@ const RangeSlider = ({
         )}
       >
         {/* Track background */}
-        <div className="absolute inset-0 h-1.5 top-1/2 -translate-y-1/2 rounded-full bg-secondary/40"></div>
+        <div className="absolute inset-0 h-1.5 top-1/2 -translate-y-1/2 rounded-full bg-gray-800"></div>
         
         {/* Filled track */}
         <div 
-          className="absolute h-1.5 top-1/2 -translate-y-1/2 left-0 rounded-full bg-primary transition-all duration-100"
+          className="absolute h-1.5 top-1/2 -translate-y-1/2 left-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all duration-100"
           style={{ width: `${percentage}%` }}
         ></div>
         
         {/* Thumb */}
         <div
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-5 w-5 rounded-full bg-primary shadow-sm border border-primary/30",
+            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-5 w-5 rounded-full bg-white shadow-sm border border-gray-200",
             "transition-all duration-100",
-            isDragging ? "scale-110 ring-2 ring-primary/20" : "scale-100",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            isDragging ? "scale-110 ring-2 ring-purple-500/20" : "scale-100",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30"
           )}
           style={{ left: `${percentage}%` }}
           tabIndex={0}

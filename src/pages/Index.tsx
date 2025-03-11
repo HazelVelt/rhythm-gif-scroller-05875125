@@ -25,8 +25,8 @@ const Index = () => {
   const [settings, setSettings] = useState<PlayerSettings>({
     tags: [],
     slideDuration: 5,
-    minDuration: 3,
-    maxDuration: 10,
+    minDuration: 300, // 5 minutes in seconds (5 * 60)
+    maxDuration: 3600, // 1 hour in seconds (60 * 60)
     taskTime: 30,
     slowestBpm: 60,
     fastestBpm: 120,
@@ -75,35 +75,40 @@ const Index = () => {
   const canStart = settings.tags.length > 0 && 
                    (settings.mediaTypes.image || settings.mediaTypes.gif || settings.mediaTypes.video);
 
+  // Convert seconds to minutes for display
+  const secondsToMinutes = (seconds: number) => Math.round(seconds / 60);
+
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-3">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-3 bg-gradient-to-b from-gray-900 to-black">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md mx-auto"
+        className="w-full max-w-sm mx-auto"
       >
-        <Card className="neo overflow-hidden">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xl font-bold text-center">Rhythm Image Scroller</CardTitle>
-            <CardDescription className="text-center text-muted-foreground text-xs">
+        <Card className="overflow-hidden border-0 bg-transparent shadow-none">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-t-xl p-5 border border-gray-700">
+            <CardTitle className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
+              Rhythm Scroller
+            </CardTitle>
+            <CardDescription className="text-center text-gray-400 text-sm mt-2">
               Set your preferences for the visual metronome experience
             </CardDescription>
-          </CardHeader>
+          </div>
           
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-5 bg-black/50 backdrop-blur-xl p-5 rounded-b-xl border-x border-b border-gray-800">
             {/* Tags Section */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium flex items-center gap-1.5">
-                  <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
+                  <Settings className="h-3.5 w-3.5 text-purple-400" />
                   Content Tags
                 </h3>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-6 w-6">
-                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Info className="h-3.5 w-3.5 text-gray-400" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -128,65 +133,65 @@ const Index = () => {
             
             {/* Media Type & NSFW Toggles */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium flex items-center gap-1.5">
-                <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+              <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
+                <Settings className="h-3.5 w-3.5 text-purple-400" />
                 Media Settings
               </h3>
               
-              <div className="grid grid-cols-2 gap-3 rounded-md glass p-3">
+              <div className="grid grid-cols-2 gap-3 rounded-md glass p-3 bg-gray-900/50 border border-gray-700">
                 <div className="flex items-center justify-between space-x-2">
                   <div className="flex items-center space-x-2">
-                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs">Photos</span>
+                    <ImageIcon className="h-4 w-4 text-blue-400" />
+                    <span className="text-xs text-gray-200">Photos</span>
                   </div>
                   <Switch 
                     checked={settings.mediaTypes.image}
                     onCheckedChange={() => toggleMediaType('image')}
-                    className="data-[state=checked]:bg-primary"
+                    className="data-[state=checked]:bg-blue-500"
                   />
                 </div>
                 
                 <div className="flex items-center justify-between space-x-2">
                   <div className="flex items-center space-x-2">
-                    <Film className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs">GIFs</span>
+                    <Film className="h-4 w-4 text-green-400" />
+                    <span className="text-xs text-gray-200">GIFs</span>
                   </div>
                   <Switch 
                     checked={settings.mediaTypes.gif}
                     onCheckedChange={() => toggleMediaType('gif')}
-                    className="data-[state=checked]:bg-primary"
+                    className="data-[state=checked]:bg-green-500"
                   />
                 </div>
                 
                 <div className="flex items-center justify-between space-x-2">
                   <div className="flex items-center space-x-2">
-                    <FileVideo2 className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs">Videos</span>
+                    <FileVideo2 className="h-4 w-4 text-amber-400" />
+                    <span className="text-xs text-gray-200">Videos</span>
                   </div>
                   <Switch 
                     checked={settings.mediaTypes.video}
                     onCheckedChange={() => toggleMediaType('video')}
-                    className="data-[state=checked]:bg-primary"
+                    className="data-[state=checked]:bg-amber-500"
                   />
                 </div>
                 
                 <div className="flex items-center justify-between space-x-2">
-                  <span className="text-xs">Allow NSFW</span>
+                  <span className="text-xs text-gray-200">Allow NSFW</span>
                   <Switch 
                     checked={settings.allowNsfw}
                     onCheckedChange={(checked) => updateSetting('allowNsfw', checked)}
-                    className="data-[state=checked]:bg-destructive"
+                    className="data-[state=checked]:bg-pink-500"
                   />
                 </div>
               </div>
             </div>
             
-            <Separator className="bg-border/50" />
+            <Separator className="bg-gray-800" />
             
             {/* Timing Settings */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium flex items-center gap-1.5">
-                <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+              <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
+                <Settings className="h-3.5 w-3.5 text-purple-400" />
                 Timing Settings
               </h3>
               
@@ -203,24 +208,25 @@ const Index = () => {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <RangeSlider
-                    min={1}
+                    min={300}
                     max={settings.maxDuration}
-                    step={1}
+                    step={60}
                     value={settings.minDuration}
                     onChange={(value) => updateSetting('minDuration', value)}
                     label="Min Duration"
-                    displayUnit=" sec"
+                    displayUnit=" min"
+                    displayValue={secondsToMinutes(settings.minDuration)}
                   />
                   
                   <RangeSlider
                     min={settings.minDuration}
                     max={3600}
-                    step={settings.maxDuration < 60 ? 1 : 10}
+                    step={60}
                     value={settings.maxDuration}
                     onChange={(value) => updateSetting('maxDuration', value)}
                     label="Max Duration"
-                    displayUnit={settings.maxDuration >= 60 ? " min" : " sec"}
-                    displayValue={settings.maxDuration >= 60 ? Math.round(settings.maxDuration / 60) : settings.maxDuration}
+                    displayUnit=" min"
+                    displayValue={secondsToMinutes(settings.maxDuration)}
                   />
                 </div>
                 
@@ -237,13 +243,13 @@ const Index = () => {
               </div>
             </div>
             
-            <Separator className="bg-border/50" />
+            <Separator className="bg-gray-800" />
             
             {/* BPM Settings */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium flex items-center gap-1.5">
-                  <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
+                  <Settings className="h-3.5 w-3.5 text-purple-400" />
                   Metronome Settings
                 </h3>
                 
@@ -251,7 +257,7 @@ const Index = () => {
                   variant="ghost" 
                   size="sm" 
                   onClick={randomizeBpm}
-                  className="h-7 px-2 text-xs"
+                  className="h-7 px-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-200"
                 >
                   Test Random BPM
                 </Button>
@@ -283,9 +289,9 @@ const Index = () => {
             </div>
           </CardContent>
           
-          <CardFooter className="flex flex-col gap-3 pt-2">
+          <CardFooter className="flex flex-col gap-3 pt-2 bg-black/50 backdrop-blur-xl p-5 rounded-b-xl border-x border-b border-gray-800">
             {!canStart && (
-              <div className="flex items-center text-yellow-500 text-xs gap-1.5 w-full justify-center mb-2">
+              <div className="flex items-center text-yellow-400 text-xs gap-1.5 w-full justify-center mb-2">
                 <AlertCircle className="h-3.5 w-3.5" />
                 <span>{settings.tags.length === 0 ? "Add at least one tag" : "Select at least one media type"}</span>
               </div>
@@ -294,7 +300,7 @@ const Index = () => {
             <Button 
               onClick={startPlayer} 
               disabled={!canStart}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
             >
               <Play className="mr-2 h-4 w-4" />
               Start Experience
@@ -302,7 +308,7 @@ const Index = () => {
           </CardFooter>
         </Card>
         
-        <div className="text-center mt-4 text-xs text-muted-foreground">
+        <div className="text-center mt-4 text-xs text-gray-500">
           <p>Content sourced from Scrolller based on your tags</p>
         </div>
       </motion.div>
