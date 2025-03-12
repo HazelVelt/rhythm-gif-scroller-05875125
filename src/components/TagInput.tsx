@@ -1,6 +1,6 @@
 
 import { useState, useEffect, KeyboardEvent } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 
@@ -54,19 +54,19 @@ const TagInput = ({
   };
 
   return (
-    <div className={`glass rounded-lg p-2 ${className}`}>
-      <div className="flex flex-wrap gap-2 p-1">
+    <div className={`bg-gray-100 dark:bg-gray-800 rounded-md p-1.5 ${className}`}>
+      <div className="flex flex-wrap gap-1.5 p-1">
         {value.map((tag, index) => (
           <Badge 
             key={`${tag}-${index}`}
             variant="secondary"
-            className="bg-accent text-accent-foreground animate-fade-in flex items-center gap-1 pl-3 pr-2"
+            className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 flex items-center gap-1 pl-2 pr-1"
           >
             {tag}
             <button
               type="button"
               onClick={() => removeTag(index)}
-              className="ml-1 rounded-full hover:bg-secondary/80 p-0.5 focus:outline-none focus:ring-1 focus:ring-primary/20"
+              className="ml-1 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 p-0.5 focus:outline-none"
               aria-label={`Remove ${tag} tag`}
             >
               <X className="h-3 w-3" />
@@ -91,8 +91,8 @@ const TagInput = ({
             <button
               type="button"
               onClick={handleAddTag}
-              className="flex items-center justify-center rounded-full hover:bg-secondary/40 p-1 
-                         transition-colors duration-200 ml-1 focus:outline-none focus:ring-1 focus:ring-primary/20"
+              className="flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 p-1 
+                         transition-colors duration-200 ml-1 focus:outline-none"
               aria-label="Add tag"
             >
               <Plus className="h-4 w-4" />

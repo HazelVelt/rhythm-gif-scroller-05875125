@@ -17,17 +17,24 @@ class RedgifsServiceClass {
 
   // Fetch media items based on the provided tags
   public async fetchMedia(tags: string[], includeNsfw: boolean): Promise<MediaItem[]> {
+    if (!tags.length) {
+      console.error('No tags provided for RedgifsService.fetchMedia');
+      return [];
+    }
+    
     // Create a cache key based on the request parameters
     const cacheKey = this.createCacheKey(tags, includeNsfw);
     
     // Return cached results if available
     if (this.cache[cacheKey] && this.cache[cacheKey].length > 0) {
+      console.log('Returning cached items for', cacheKey);
       return this.cache[cacheKey];
     }
     
     try {
       // Generate the appropriate request URL
       const url = this.buildApiUrl(tags, includeNsfw);
+      console.log('Fetching media from:', url);
       
       // Make the API request
       const response = await fetch(url);
@@ -39,6 +46,7 @@ class RedgifsServiceClass {
       
       // Parse the response JSON
       const data = await response.json();
+      console.log('Received data items:', data.length || 'unknown length');
       
       // Map the API response to our MediaItem type
       const mediaItems: MediaItem[] = this.mapApiResponseToMediaItems(data);
@@ -60,6 +68,11 @@ class RedgifsServiceClass {
   // Get the next media item based on current settings
   public async getNextItem(settings: { tags: string[], allowNsfw: boolean }): Promise<MediaItem | null> {
     const { tags, allowNsfw } = settings;
+    
+    if (!tags.length) {
+      console.error('No tags provided for RedgifsService.getNextItem');
+      return null;
+    }
     
     // If we have no cached items or we've reached the end, fetch more
     if (this.currentItems.length === 0 || this.currentIndex >= this.currentItems.length) {
@@ -88,7 +101,7 @@ class RedgifsServiceClass {
   // Build the API URL based on the request parameters
   private buildApiUrl(tags: string[], includeNsfw: boolean): string {
     const baseUrl = this.API_URL;
-    const tagsParam = tags.join(',');
+    const tagsParam = encodeURIComponent(tags.join(','));
     const nsfwParam = includeNsfw ? 'true' : 'false';
     
     return `${baseUrl}?tags=${tagsParam}&nsfw=${nsfwParam}`;
@@ -96,6 +109,11 @@ class RedgifsServiceClass {
   
   // Map the API response to our MediaItem type
   private mapApiResponseToMediaItems(data: any[]): MediaItem[] {
+    if (!Array.isArray(data)) {
+      console.error('Expected array data from API, received:', typeof data);
+      return [];
+    }
+    
     return data.map(item => ({
       id: item.id || `id-${Math.random().toString(36).substr(2, 9)}`,
       url: item.url,

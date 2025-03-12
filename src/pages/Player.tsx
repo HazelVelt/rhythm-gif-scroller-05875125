@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Settings, Volume2, VolumeX } from 'lucide-react';
+import { X, Settings, Volume2, VolumeX, Home, Maximize, SkipForward } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import Metronome from '@/components/Metronome';
@@ -20,11 +20,13 @@ const Player = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   
   const mediaTimerRef = useRef<number | null>(null);
   const bpmTimerRef = useRef<number | null>(null);
   const loadingTimeoutRef = useRef<number | null>(null);
   const previousBpmRef = useRef<number | null>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   
   // Preload images for smoother transitions
   const preloadMedia = (url: string, type: 'image' | 'video' | 'gif'): Promise<void> => {
@@ -91,9 +93,11 @@ const Player = () => {
     const loadInitialMedia = async () => {
       try {
         // Load current and next media items
+        console.log("Fetching first media item with tags:", settings.tags);
         const firstItem = await RedgifsService.getNextItem(settings);
         
         if (firstItem) {
+          console.log("Got first media item:", firstItem.url);
           // Preload the media
           if (firstItem.url) {
             await preloadMedia(firstItem.url, firstItem.type).catch(() => {
@@ -104,6 +108,7 @@ const Player = () => {
           setCurrentMedia(firstItem);
           
           // Start loading the next item immediately
+          console.log("Fetching second media item");
           const secondItem = await RedgifsService.getNextItem(settings);
           if (secondItem && secondItem.url) {
             preloadMedia(secondItem.url, secondItem.type).catch(() => {
@@ -213,6 +218,13 @@ const Player = () => {
     if (mediaTimerRef.current) clearTimeout(mediaTimerRef.current);
     if (bpmTimerRef.current) clearTimeout(bpmTimerRef.current);
     
+    // Exit fullscreen if needed
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(err => {
+        console.error("Error exiting fullscreen:", err);
+      });
+    }
+    
     // Navigate back to settings
     navigate('/');
   };
@@ -222,13 +234,68 @@ const Player = () => {
     setIsMuted(!isMuted);
   };
   
+  // Toggle fullscreen
+  const toggleFullscreen = () => {
+    if (!playerContainerRef.current) return;
+    
+    if (!document.fullscreenElement) {
+      playerContainerRef.current.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error("Error attempting to enable fullscreen:", err);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch(err => {
+        console.error("Error attempting to exit fullscreen:", err);
+      });
+    }
+  };
+  
+  // Skip to next media
+  const skipToNext = async () => {
+    if (!settings) return;
+    
+    // Clear existing timer
+    if (mediaTimerRef.current) {
+      clearTimeout(mediaTimerRef.current);
+    }
+    
+    // If we have a next item ready, use it
+    if (nextMedia) {
+      setCurrentMedia(nextMedia);
+      setNextMedia(null);
+      
+      // Start loading the next item
+      const newNextItem = await RedgifsService.getNextItem(settings);
+      setNextMedia(newNextItem);
+    } else {
+      // If next item isn't ready yet, load a new one
+      const newItem = await RedgifsService.getNextItem(settings);
+      if (newItem) {
+        setCurrentMedia(newItem);
+        
+        // Start loading the next item
+        const newNextItem = await RedgifsService.getNextItem(settings);
+        setNextMedia(newNextItem);
+      }
+    }
+    
+    toast({
+      title: "Media Skipped",
+      description: "Loading next content...",
+      duration: 2000,
+    });
+  };
+  
   // Render loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center">
-          <div className="animate-pulse-subtle inline-block h-12 w-12 rounded-full border-2 border-t-purple-500 border-r-transparent border-l-transparent border-b-transparent animate-spin"></div>
-          <p className="mt-4 text-purple-300">Preparing your experience...</p>
+          <div className="inline-block h-12 w-12 rounded-full border-4 border-t-blue-500 border-r-transparent border-l-transparent border-b-transparent animate-spin"></div>
+          <p className="mt-4 text-blue-600 dark:text-blue-400">Loading your experience...</p>
         </div>
       </div>
     );
@@ -237,14 +304,14 @@ const Player = () => {
   // Render error state
   if (errorMessage) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-gray-900 to-black">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-white dark:bg-gray-900">
         <div className="text-center max-w-md mx-auto">
-          <div className="mb-6 text-pink-500">
+          <div className="mb-6 text-red-500">
             <X className="h-12 w-12 mx-auto" />
           </div>
-          <h2 className="text-xl font-semibold mb-2 text-white">Error</h2>
-          <p className="text-gray-400 mb-6">{errorMessage}</p>
-          <Button onClick={() => navigate('/')} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0">
+          <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Error</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{errorMessage}</p>
+          <Button onClick={() => navigate('/')} className="bg-blue-600 hover:bg-blue-700 text-white">
             Return to Settings
           </Button>
         </div>
@@ -253,32 +320,51 @@ const Player = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col overflow-hidden relative bg-black">
-      {/* Exit button */}
-      <div className="absolute top-4 right-4 z-20">
-        <Button 
-          variant="secondary" 
-          size="icon" 
-          onClick={handleExit}
-          className="glass h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-      </div>
-      
-      {/* Sound toggle */}
-      <div className="absolute top-4 left-4 z-20">
-        <Button 
-          variant="secondary" 
-          size="icon" 
-          onClick={toggleSound}
-          className="glass h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
-        >
-          {isMuted ? 
-            <VolumeX className="h-5 w-5" /> : 
-            <Volume2 className="h-5 w-5" />
-          }
-        </Button>
+    <div ref={playerContainerRef} className="min-h-screen flex flex-col overflow-hidden relative bg-gray-900">
+      {/* Header toolbar */}
+      <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent">
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handleExit}
+            className="h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
+          >
+            <Home className="h-5 w-5" />
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={toggleSound}
+            className="h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
+          >
+            {isMuted ? 
+              <VolumeX className="h-5 w-5" /> : 
+              <Volume2 className="h-5 w-5" />
+            }
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={skipToNext}
+            className="h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
+          >
+            <SkipForward className="h-5 w-5" />
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={toggleFullscreen}
+            className="h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
+          >
+            <Maximize className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
       
       {/* Media display area */}
@@ -315,12 +401,17 @@ const Player = () => {
       
       {/* Metronome fixed at bottom */}
       <div className="fixed bottom-0 left-0 right-0 py-4 z-10">
-        <div className="glass max-w-lg mx-auto rounded-full py-3 px-6 bg-black/70 backdrop-blur-md border border-gray-800">
-          <Metronome 
-            bpm={currentBpm} 
-            autoPlay={true} 
-            showControls={false}
-          />
+        <div className="max-w-lg mx-auto rounded-lg py-3 px-6 bg-black/70 backdrop-blur-md border border-gray-800">
+          <div className="flex justify-center items-center">
+            <div className="px-4 py-2 bg-gray-800 rounded-lg mr-4 text-xl font-mono font-bold text-white">
+              {currentBpm} <span className="text-sm text-gray-400">BPM</span>
+            </div>
+            <Metronome 
+              bpm={currentBpm} 
+              autoPlay={true} 
+              showControls={false}
+            />
+          </div>
         </div>
       </div>
     </div>
