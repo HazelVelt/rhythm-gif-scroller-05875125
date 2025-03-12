@@ -1,4 +1,3 @@
-
 import { MediaItem } from '@/types';
 
 // This is a front-end service to interact with Redgifs API
@@ -203,10 +202,12 @@ class RedgifsServiceClass {
     return gifs.map(gif => {
       console.log('Processing gif:', gif.id, gif.urls);
       
+      // Explicitly assign the type as "video" for Redgifs content
+      // This ensures we comply with the MediaItem type definition
       return {
         id: gif.id || `id-${Math.random().toString(36).substr(2, 9)}`,
         url: gif.urls?.hd || gif.urls?.sd || gif.url || gif.urls?.gif,
-        type: 'video', // Redgifs primarily hosts videos
+        type: "video" as "video" | "image" | "gif", // Ensure correct type assignment
         width: gif.width || 0,
         height: gif.height || 0,
         thumbnailUrl: gif.urls?.thumbnail || gif.urls?.poster || gif.thumbnail
