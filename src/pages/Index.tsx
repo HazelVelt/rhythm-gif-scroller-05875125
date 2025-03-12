@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, AlertCircle, Settings, ImageIcon, Film, FileVideo2, Volume2, MonitorIcon, GithubIcon } from 'lucide-react';
@@ -21,7 +20,7 @@ import RangeSlider from '@/components/RangeSlider';
 import Metronome from '@/components/Metronome';
 import { PlayerSettings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { ScrollerService } from '@/utils/scrollerService';
+import { RedgifsService } from '@/utils/redgifsService';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -63,8 +62,8 @@ const Index = () => {
   
   // Start the player with current settings
   const startPlayer = () => {
-    // Clear Scroller cache to ensure fresh content with new settings
-    ScrollerService.clearCache();
+    // Clear RedgifsService cache to ensure fresh content with new settings
+    RedgifsService.clearCache();
     
     // Validate settings before proceeding
     if (!canStart) {
@@ -113,7 +112,7 @@ const Index = () => {
 
   // Convert seconds to minutes for display
   const secondsToMinutes = (seconds: number) => Math.round(seconds / 60);
-
+  
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-gray-900 to-black dark:from-[#1A1A1E] dark:to-black overflow-y-auto">
       <motion.div

@@ -1,35 +1,53 @@
 
 import { MediaItem } from '@/types';
 
-// This is a front-end service to interact with Redgifs API
+/**
+ * RedgifsService - A service to fetch media from Redgifs
+ * This handles token authentication and content fetching
+ */
 class RedgifsServiceClass {
-  private cache: Record<string, MediaItem[]> = {};
+  // Core properties
   private API_URL = 'https://api.redgifs.com/v2';
-  private currentIndex: number = 0;
+  private TOKEN_ENDPOINT = '/oauth/temporary';
+  private SEARCH_ENDPOINT = '/gifs/search';
+  private TRENDING_ENDPOINT = '/gifs/trending';
+  
+  // Cache and state management
+  private cache: Record<string, MediaItem[]> = {};
   private currentItems: MediaItem[] = [];
+  private currentIndex: number = 0;
+  
+  // Authentication
   private temporaryToken: string | null = null;
   private tokenExpiry: number = 0;
   
-  // Clear the media cache
+  /**
+   * Clear the cache and reset current items
+   */
   public clearCache(): void {
     this.cache = {};
     this.currentItems = [];
     this.currentIndex = 0;
+    console.log('Cache cleared');
   }
 
-  // Get or refresh the temporary token
+  /**
+   * Get a temporary auth token from Redgifs
+   */
   private async getTemporaryToken(): Promise<string> {
-    // If we have a token and it's not expired, return it
     const now = Date.now();
+    
+    // Return existing token if valid
     if (this.temporaryToken && now < this.tokenExpiry) {
+      console.log('Using existing token');
       return this.temporaryToken;
     }
     
     try {
-      // Updated endpoint based on the latest Redgifs API (as of 2023)
-      console.log('Requesting temporary token using current API');
+      // Try the primary token endpoint
+      console.log('Requesting temporary token from:', `${this.API_URL}${this.TOKEN_ENDPOINT}`);
       
-      const response = await fetch(`${this.API_URL}/auth/temporary-token`, {
+      const response = await fetch(`${this.API_URL}${this.TOKEN_ENDPOINT}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -37,99 +55,155 @@ class RedgifsServiceClass {
       });
       
       if (!response.ok) {
-        console.error(`Failed to get token, status: ${response.status}`);
-        console.error('Response:', await response.text());
-        throw new Error(`Failed to get temporary token: ${response.status}`);
+        throw new Error(`Token endpoint failed: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('Token response:', data);
       
       if (!data.token) {
-        throw new Error('No token returned from API');
+        throw new Error('No token in response');
       }
       
-      // Save the token and set expiry to 1 hour from now
       this.temporaryToken = data.token;
-      this.tokenExpiry = now + 3600000; // 1 hour in milliseconds
+      this.tokenExpiry = now + 3600000; // 1 hour
+      console.log('Successfully obtained token');
       
-      console.log('Successfully obtained temporary token');
       return this.temporaryToken;
     } catch (error) {
-      console.error('Error getting temporary token:', error);
+      console.error('Primary token endpoint failed:', error);
       
-      // Try alternative method - using public API
+      // Try the alternative token endpoint
       try {
-        console.log('Trying public token method');
-        
-        // Some Redgifs endpoints can be accessed with a standard User-Agent
-        const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-        
-        // Try to access a public endpoint that doesn't require authentication
-        const publicResponse = await fetch(`${this.API_URL}/tags/trending`, {
+        console.log('Trying alternative token endpoint');
+        const altResponse = await fetch(`${this.API_URL}/auth/temporary`, {
+          method: 'POST',
           headers: {
-            'User-Agent': userAgent
+            'Content-Type': 'application/json'
           }
         });
         
-        if (!publicResponse.ok) {
-          throw new Error(`Public API failed: ${publicResponse.status}`);
+        if (!altResponse.ok) {
+          throw new Error(`Alt token endpoint failed: ${altResponse.status}`);
         }
         
-        // Using a fake token approach since we've verified we can access the API
-        this.temporaryToken = 'public-access-token';
+        const altData = await altResponse.json();
+        
+        if (!altData.token) {
+          throw new Error('No token in alt response');
+        }
+        
+        this.temporaryToken = altData.token;
         this.tokenExpiry = now + 3600000; // 1 hour
+        console.log('Successfully obtained token from alt endpoint');
         
-        console.log('Using public access method');
         return this.temporaryToken;
-      } catch (publicError) {
-        console.error('Public access method failed:', publicError);
+      } catch (altError) {
+        console.error('Alternative token endpoint failed:', altError);
         
-        // Final fallback - direct query
-        console.log('Using final fallback method');
-        
-        // This is for demonstration only - in a production app you would
-        // implement a proper backend proxy for API calls
-        this.temporaryToken = 'fallback-access';
-        this.tokenExpiry = now + 3600000;
+        // Use anonymous access as fallback (some endpoints work without auth)
+        console.log('Using anonymous access as fallback');
+        this.temporaryToken = 'anonymous';
+        this.tokenExpiry = now + 3600000; // 1 hour
         return this.temporaryToken;
       }
     }
   }
 
-  // Fetch media items based on the provided tags
+  /**
+   * Fetch media based on tags
+   */
   public async fetchMedia(tags: string[], includeNsfw: boolean): Promise<MediaItem[]> {
-    if (!tags.length) {
-      console.error('No tags provided for RedgifsService.fetchMedia');
-      return [];
+    if (!tags || tags.length === 0) {
+      console.error('No tags provided for fetchMedia');
+      return this.fetchTrendingMedia(); // Fallback to trending
     }
     
-    // Create a cache key based on the request parameters
+    // Create a cache key
     const cacheKey = this.createCacheKey(tags, includeNsfw);
     
     // Return cached results if available
     if (this.cache[cacheKey] && this.cache[cacheKey].length > 0) {
-      console.log('Returning cached items for', cacheKey);
+      console.log('Using cached results for:', cacheKey);
       return this.cache[cacheKey];
     }
     
     try {
-      // Try to get a token first (but it might be a fallback token)
+      // Try to get auth token
       await this.getTemporaryToken();
       
       // Prepare search parameters
       const searchTags = tags.join(',');
-      const count = 30; // Number of results to fetch
+      const count = 30;
+      const url = `${this.API_URL}${this.SEARCH_ENDPOINT}?search_text=${encodeURIComponent(searchTags)}&count=${count}&order=trending`;
       
-      // Use public API method first (does not require auth token)
-      console.log('Trying direct fetch with search terms:', searchTags);
+      console.log('Fetching from search endpoint:', url);
       
-      // Build the URL for searching gifs - using public API
-      const url = `${this.API_URL}/gifs/search?search_text=${encodeURIComponent(searchTags)}&count=${count}`;
+      // Standard user agent for web requests
+      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
       
-      console.log('Fetching media from:', url);
+      // Headers for request
+      const headers: Record<string, string> = {
+        'User-Agent': userAgent,
+        'Accept': 'application/json'
+      };
       
-      // Make the request with standard browser headers
+      // Add auth token if we have one
+      if (this.temporaryToken && this.temporaryToken !== 'anonymous') {
+        headers['Authorization'] = `Bearer ${this.temporaryToken}`;
+      }
+      
+      // Make the request
+      const response = await fetch(url, { headers });
+      
+      // If unsuccessful, try fallback
+      if (!response.ok) {
+        console.error(`Search endpoint failed: ${response.status}`);
+        throw new Error(`Search failed: ${response.status}`);
+      }
+      
+      // Parse response
+      const data = await response.json();
+      console.log('Search response structure:', Object.keys(data));
+      
+      // Handle different response formats
+      let items = [];
+      if (data.gifs && Array.isArray(data.gifs)) {
+        console.log('Using gifs array from response, count:', data.gifs.length);
+        items = data.gifs;
+      } else if (data.items && Array.isArray(data.items)) {
+        console.log('Using items array from response, count:', data.items.length);
+        items = data.items;
+      } else {
+        console.error('Unexpected response format:', Object.keys(data));
+        throw new Error('Invalid API response format');
+      }
+      
+      // Map API items to our format
+      const mediaItems: MediaItem[] = this.mapApiResponseToMediaItems(items);
+      console.log('Mapped items count:', mediaItems.length);
+      
+      // Cache results if we got any
+      if (mediaItems.length > 0) {
+        this.cache[cacheKey] = mediaItems;
+        this.currentItems = mediaItems;
+        this.currentIndex = 0;
+      }
+      
+      return mediaItems;
+    } catch (error) {
+      console.error('Error fetching from search endpoint:', error);
+      return this.fetchTrendingMedia(); // Fallback to trending
+    }
+  }
+  
+  /**
+   * Fetch trending media as fallback
+   */
+  private async fetchTrendingMedia(): Promise<MediaItem[]> {
+    try {
+      console.log('Fetching trending content as fallback');
+      const url = `${this.API_URL}${this.TRENDING_ENDPOINT}?count=30`;
+      
       const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
       const response = await fetch(url, {
         headers: {
@@ -138,151 +212,119 @@ class RedgifsServiceClass {
         }
       });
       
-      // If the request was unsuccessful, try fallback
       if (!response.ok) {
-        console.error(`API response: ${response.status} ${response.statusText}`);
-        throw new Error(`Redgifs API returned ${response.status}`);
+        throw new Error(`Trending API failed: ${response.status}`);
       }
       
-      // Parse the response JSON
       const data = await response.json();
-      console.log('Received data:', data);
       
-      if (!data.gifs || !Array.isArray(data.gifs)) {
-        // Try alternative endpoint format
-        if (data.items && Array.isArray(data.items)) {
-          console.log('Using alternative data format (items)');
-          const mediaItems: MediaItem[] = this.mapApiResponseToMediaItems(data.items || []);
-          
-          // Cache the results
-          this.cache[cacheKey] = mediaItems;
-          this.currentItems = mediaItems;
-          this.currentIndex = 0;
-          
-          return mediaItems;
-        }
-        
-        console.error('Unexpected response format:', data);
-        throw new Error('Invalid API response format');
+      // Handle different response formats
+      let items = [];
+      if (data.gifs && Array.isArray(data.gifs)) {
+        items = data.gifs;
+      } else if (data.items && Array.isArray(data.items)) {
+        items = data.items;
+      } else {
+        console.error('Unexpected trending response format:', Object.keys(data));
+        return [];
       }
       
-      // Map the API response to our MediaItem type
-      const mediaItems: MediaItem[] = this.mapApiResponseToMediaItems(data.gifs || []);
-      
-      // Cache the results
-      this.cache[cacheKey] = mediaItems;
-      this.currentItems = mediaItems;
-      this.currentIndex = 0;
+      // Map to our format
+      const mediaItems: MediaItem[] = this.mapApiResponseToMediaItems(items);
+      console.log('Trending items count:', mediaItems.length);
       
       return mediaItems;
     } catch (error) {
-      console.error('Error fetching media from Redgifs:', error);
-      
-      // Try one more alternative method - trending gifs
-      try {
-        console.log('Trying trending content as fallback');
-        const trendingUrl = `${this.API_URL}/gifs/trending?count=30`;
-        
-        const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-        const response = await fetch(trendingUrl, {
-          headers: {
-            'User-Agent': userAgent,
-            'Accept': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Trending API returned ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Received trending data items:', data.gifs ? data.gifs.length : 'unknown');
-        
-        if (!data.gifs && !data.items) {
-          throw new Error('No trending items found');
-        }
-        
-        // Use either gifs or items property based on the response
-        const items = data.gifs || data.items || [];
-        const mediaItems: MediaItem[] = this.mapApiResponseToMediaItems(items);
-        
-        // Cache the results
-        this.cache[cacheKey] = mediaItems;
-        this.currentItems = mediaItems;
-        this.currentIndex = 0;
-        
-        return mediaItems;
-      } catch (fallbackError) {
-        console.error('All fetching methods failed:', fallbackError);
-        
-        // Return an empty array if all methods failed
-        return [];
-      }
+      console.error('All fetching methods failed:', error);
+      return []; // Return empty if all fails
     }
   }
   
-  // Get the next media item based on current settings
+  /**
+   * Get next media item for the player
+   */
   public async getNextItem(settings: { tags: string[], allowNsfw: boolean }): Promise<MediaItem | null> {
     const { tags, allowNsfw } = settings;
     
-    if (!tags.length) {
-      console.error('No tags provided for RedgifsService.getNextItem');
-      return null;
+    if (!tags || tags.length === 0) {
+      console.warn('No tags provided for getNextItem, using trending');
+      const trendingItems = await this.fetchTrendingMedia();
+      return trendingItems.length > 0 ? trendingItems[0] : null;
     }
     
-    // If we have no cached items or we've reached the end, fetch more
+    // If we ran out of items, fetch more
     if (this.currentItems.length === 0 || this.currentIndex >= this.currentItems.length) {
+      console.log('Fetching new batch of items');
       const newItems = await this.fetchMedia(tags, allowNsfw);
       
       if (newItems.length === 0) {
-        return null;
+        console.warn('No items found, try trending');
+        const trendingItems = await this.fetchTrendingMedia();
+        return trendingItems.length > 0 ? trendingItems[0] : null;
       }
       
       this.currentItems = newItems;
       this.currentIndex = 0;
     }
     
-    // Return the next item and increment the index
+    // Return next item
     const item = this.currentItems[this.currentIndex];
     this.currentIndex++;
     
+    console.log('Returning item:', item.id, item.type);
     return item;
   }
   
-  // Create a cache key based on the request parameters
+  /**
+   * Create a cache key from request parameters
+   */
   private createCacheKey(tags: string[], includeNsfw: boolean): string {
     return `${tags.sort().join('+')}:${includeNsfw ? 'nsfw' : 'sfw'}`;
   }
   
-  // Map the API response to our MediaItem type
-  private mapApiResponseToMediaItems(gifs: any[]): MediaItem[] {
-    if (!Array.isArray(gifs)) {
-      console.error('Expected array data from API, received:', typeof gifs);
+  /**
+   * Map API response to our MediaItem type
+   */
+  private mapApiResponseToMediaItems(items: any[]): MediaItem[] {
+    if (!Array.isArray(items)) {
+      console.error('Expected array for mapping, got:', typeof items);
       return [];
     }
     
-    return gifs.map(gif => {
-      console.log('Processing gif:', gif.id, gif.urls);
+    return items.map(item => {
+      // Handle various response formats
+      const urls = item.urls || item;
       
-      // Handle different response formats
-      const urls = gif.urls || gif;
-      const id = gif.id || `id-${Math.random().toString(36).substr(2, 9)}`;
-      const hdUrl = urls?.hd || urls?.sd || gif.url || urls?.mp4 || urls?.gif || gif.content_urls?.mp4 || '';
-      const thumbnailUrl = urls?.thumbnail || urls?.poster || gif.thumbnail || gif.poster || '';
+      // Get the best URL available
+      let mediaUrl = '';
+      if (urls.hd) mediaUrl = urls.hd;
+      else if (urls.sd) mediaUrl = urls.sd;
+      else if (item.url) mediaUrl = item.url;
+      else if (urls.mp4) mediaUrl = urls.mp4;
+      else if (urls.gif) mediaUrl = urls.gif;
+      else if (item.content_urls?.mp4) mediaUrl = item.content_urls.mp4;
       
-      // Explicitly assign the type as "video" for Redgifs content
-      // This ensures we comply with the MediaItem type definition
+      // Skip if no usable URL
+      if (!mediaUrl) {
+        console.warn('No usable URL found for item');
+        return null;
+      }
+      
+      // Get a thumbnail
+      const thumbnailUrl = urls.thumbnail || urls.poster || item.thumbnail || item.poster || '';
+      
+      // For Redgifs, all content is treated as video for proper playback
       return {
-        id: id,
-        url: hdUrl,
-        type: "video" as "video" | "image" | "gif", // Ensure correct type assignment
-        width: gif.width || 0,
-        height: gif.height || 0,
+        id: item.id || `redgif-${Math.random().toString(36).substring(2, 11)}`,
+        url: mediaUrl,
+        type: "video" as "video" | "image" | "gif",
+        width: item.width || 0, 
+        height: item.height || 0,
         thumbnailUrl: thumbnailUrl
       };
-    }).filter(item => !!item.url); // Filter out items with no URL
+    }).filter(Boolean) as MediaItem[]; // Remove null items
   }
 }
 
-// Export a singleton instance
+// Export singleton
 export const RedgifsService = new RedgifsServiceClass();
