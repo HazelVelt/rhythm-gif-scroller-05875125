@@ -21,9 +21,9 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="dark" storageKey="rhythm-scroller-theme">
+    <ThemeProvider defaultTheme="dark" storageKey="goons-game-theme">
       <TooltipProvider>
-        <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black">
+        <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-900 to-black dark:from-[#1A1A1E] dark:to-black">
           <Toaster />
           <Sonner position="top-center" closeButton />
           <BrowserRouter>

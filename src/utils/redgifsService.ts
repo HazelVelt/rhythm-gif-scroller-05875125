@@ -26,15 +26,19 @@ class RedgifsServiceClass {
     }
     
     try {
-      // Make a request to get a temporary token
+      // Make a request to get a temporary token using the correct endpoint for guest users
       const response = await fetch(`${this.API_URL}/auth/temporary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          app_id: 'web_app' // Required for guest token
+        })
       });
       
       if (!response.ok) {
+        console.error(`Failed to get token, status: ${response.status}`);
         throw new Error(`Failed to get temporary token: ${response.status}`);
       }
       
@@ -90,6 +94,7 @@ class RedgifsServiceClass {
       
       // If the request was unsuccessful, throw an error
       if (!response.ok) {
+        console.error(`API response: ${response.status} ${response.statusText}`);
         throw new Error(`Redgifs API returned ${response.status}: ${response.statusText}`);
       }
       
