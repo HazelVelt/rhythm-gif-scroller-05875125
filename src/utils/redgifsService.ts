@@ -26,21 +26,25 @@ class RedgifsServiceClass {
     }
     
     try {
-      // According to Redgifs API docs, the temporary token endpoint changed
-      // Using the correct endpoint for guest authentication
+      // Correct endpoint for getting temporary token as per updated Redgifs API
+      console.log('Requesting new temporary token from Redgifs');
+      
       const response = await fetch(`${this.API_URL}/auth/temporary`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        method: 'POST'
       });
       
       if (!response.ok) {
         console.error(`Failed to get token, status: ${response.status}`);
+        console.error('Response:', await response.text());
         throw new Error(`Failed to get temporary token: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Token response:', data);
+      
+      if (!data.token) {
+        throw new Error('No token returned from API');
+      }
       
       // Save the token and set expiry to 1 hour from now
       this.temporaryToken = data.token;
@@ -50,7 +54,38 @@ class RedgifsServiceClass {
       return this.temporaryToken;
     } catch (error) {
       console.error('Error getting temporary token:', error);
-      throw error;
+      
+      // Fallback to alternative endpoint if the primary fails
+      try {
+        console.log('Trying fallback endpoint');
+        const fallbackResponse = await fetch(`${this.API_URL}/oauth/guest-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            app: 'web_browser'
+          })
+        });
+        
+        if (!fallbackResponse.ok) {
+          throw new Error(`Fallback endpoint failed: ${fallbackResponse.status}`);
+        }
+        
+        const fallbackData = await fallbackResponse.json();
+        
+        if (!fallbackData.token) {
+          throw new Error('No token returned from fallback API');
+        }
+        
+        this.temporaryToken = fallbackData.token;
+        this.tokenExpiry = now + 3600000;
+        console.log('Successfully obtained token from fallback endpoint');
+        return this.temporaryToken;
+      } catch (fallbackError) {
+        console.error('Fallback authentication also failed:', fallbackError);
+        throw error; // Throw the original error
+      }
     }
   }
 
@@ -94,12 +129,19 @@ class RedgifsServiceClass {
       // If the request was unsuccessful, throw an error
       if (!response.ok) {
         console.error(`API response: ${response.status} ${response.statusText}`);
+        const responseText = await response.text();
+        console.error('Response body:', responseText);
         throw new Error(`Redgifs API returned ${response.status}: ${response.statusText}`);
       }
       
       // Parse the response JSON
       const data = await response.json();
       console.log('Received data items:', data.gifs ? data.gifs.length : 'unknown length');
+      
+      if (!data.gifs || !Array.isArray(data.gifs)) {
+        console.error('Unexpected response format:', data);
+        return [];
+      }
       
       // Map the API response to our MediaItem type
       const mediaItems: MediaItem[] = this.mapApiResponseToMediaItems(data.gifs || []);
@@ -158,14 +200,18 @@ class RedgifsServiceClass {
       return [];
     }
     
-    return gifs.map(gif => ({
-      id: gif.id || `id-${Math.random().toString(36).substr(2, 9)}`,
-      url: gif.urls?.hd || gif.urls?.sd || gif.urls?.gif || gif.url,
-      type: 'video', // Redgifs primarily hosts videos
-      width: gif.width || 0,
-      height: gif.height || 0,
-      thumbnailUrl: gif.urls?.thumbnail || gif.urls?.poster || gif.thumbnail
-    }));
+    return gifs.map(gif => {
+      console.log('Processing gif:', gif.id, gif.urls);
+      
+      return {
+        id: gif.id || `id-${Math.random().toString(36).substr(2, 9)}`,
+        url: gif.urls?.hd || gif.urls?.sd || gif.url || gif.urls?.gif,
+        type: 'video', // Redgifs primarily hosts videos
+        width: gif.width || 0,
+        height: gif.height || 0,
+        thumbnailUrl: gif.urls?.thumbnail || gif.urls?.poster || gif.thumbnail
+      };
+    }).filter(item => !!item.url); // Filter out items with no URL
   }
 }
 
