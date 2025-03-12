@@ -8,7 +8,7 @@ import { MediaItem } from '@/types';
 class RedgifsServiceClass {
   // Core properties
   private API_URL = 'https://api.redgifs.com/v2';
-  private TOKEN_ENDPOINT = '/oauth/temporary';
+  private TOKEN_ENDPOINT = '/oauth/token';
   private SEARCH_ENDPOINT = '/gifs/search';
   private TRENDING_ENDPOINT = '/gifs/trending';
   
@@ -44,68 +44,44 @@ class RedgifsServiceClass {
     }
     
     try {
-      // Try the primary token endpoint
-      console.log('Requesting temporary token from:', `${this.API_URL}${this.TOKEN_ENDPOINT}`);
+      console.log('Requesting temporary token');
       
       const response = await fetch(`${this.API_URL}${this.TOKEN_ENDPOINT}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          grant_type: 'client_credentials'
+        })
       });
       
       if (!response.ok) {
+        console.log(`Token request failed with status: ${response.status}`);
         throw new Error(`Token endpoint failed: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Token response:', data);
       
-      if (!data.token) {
+      if (!data.access_token) {
+        console.error('No access_token in response');
         throw new Error('No token in response');
       }
       
-      this.temporaryToken = data.token;
-      this.tokenExpiry = now + 3600000; // 1 hour
+      this.temporaryToken = data.access_token;
+      this.tokenExpiry = now + ((data.expires_in || 3600) * 1000); // Use expires_in or default to 1 hour
       console.log('Successfully obtained token');
       
       return this.temporaryToken;
     } catch (error) {
-      console.error('Primary token endpoint failed:', error);
+      console.error('Token endpoint failed, trying anonymous access:', error);
       
-      // Try the alternative token endpoint
-      try {
-        console.log('Trying alternative token endpoint');
-        const altResponse = await fetch(`${this.API_URL}/auth/temporary`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!altResponse.ok) {
-          throw new Error(`Alt token endpoint failed: ${altResponse.status}`);
-        }
-        
-        const altData = await altResponse.json();
-        
-        if (!altData.token) {
-          throw new Error('No token in alt response');
-        }
-        
-        this.temporaryToken = altData.token;
-        this.tokenExpiry = now + 3600000; // 1 hour
-        console.log('Successfully obtained token from alt endpoint');
-        
-        return this.temporaryToken;
-      } catch (altError) {
-        console.error('Alternative token endpoint failed:', altError);
-        
-        // Use anonymous access as fallback (some endpoints work without auth)
-        console.log('Using anonymous access as fallback');
-        this.temporaryToken = 'anonymous';
-        this.tokenExpiry = now + 3600000; // 1 hour
-        return this.temporaryToken;
-      }
+      // For public endpoints, we can use anonymous access
+      this.temporaryToken = 'anonymous';
+      this.tokenExpiry = now + 3600000; // 1 hour
+      console.log('Using anonymous access');
+      return this.temporaryToken;
     }
   }
 
@@ -128,14 +104,27 @@ class RedgifsServiceClass {
     }
     
     try {
-      // Try to get auth token
+      // Always get a fresh token
+      this.clearCache();
       await this.getTemporaryToken();
       
-      // Prepare search parameters
-      const searchTags = tags.join(',');
+      // Prepare search parameters - use the correct format
+      const searchTags = tags.join(' ');
       const count = 30;
-      const url = `${this.API_URL}${this.SEARCH_ENDPOINT}?search_text=${encodeURIComponent(searchTags)}&count=${count}&order=trending`;
       
+      // Build the proper URL with query parameters
+      const params = new URLSearchParams({
+        search_text: searchTags,
+        count: String(count),
+        order: 'trending'
+      });
+      
+      // If we care about NSFW content
+      if (includeNsfw) {
+        params.append('type', 'g');
+      }
+      
+      const url = `${this.API_URL}${this.SEARCH_ENDPOINT}?${params.toString()}`;
       console.log('Fetching from search endpoint:', url);
       
       // Standard user agent for web requests
@@ -158,6 +147,7 @@ class RedgifsServiceClass {
       // If unsuccessful, try fallback
       if (!response.ok) {
         console.error(`Search endpoint failed: ${response.status}`);
+        console.error('Response:', await response.text());
         throw new Error(`Search failed: ${response.status}`);
       }
       
@@ -178,6 +168,11 @@ class RedgifsServiceClass {
         throw new Error('Invalid API response format');
       }
       
+      // Log the first item to see its structure
+      if (items.length > 0) {
+        console.log('Sample item structure:', JSON.stringify(items[0], null, 2));
+      }
+      
       // Map API items to our format
       const mediaItems: MediaItem[] = this.mapApiResponseToMediaItems(items);
       console.log('Mapped items count:', mediaItems.length);
@@ -187,6 +182,9 @@ class RedgifsServiceClass {
         this.cache[cacheKey] = mediaItems;
         this.currentItems = mediaItems;
         this.currentIndex = 0;
+      } else {
+        console.warn('No items found in search results');
+        return this.fetchTrendingMedia(); // Fallback to trending
       }
       
       return mediaItems;
@@ -202,7 +200,15 @@ class RedgifsServiceClass {
   private async fetchTrendingMedia(): Promise<MediaItem[]> {
     try {
       console.log('Fetching trending content as fallback');
-      const url = `${this.API_URL}${this.TRENDING_ENDPOINT}?count=30`;
+      
+      // Build proper URL with query parameters
+      const params = new URLSearchParams({
+        count: '30',
+        page: '1'
+      });
+      
+      const url = `${this.API_URL}${this.TRENDING_ENDPOINT}?${params.toString()}`;
+      console.log('Trending URL:', url);
       
       const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
       const response = await fetch(url, {
@@ -213,10 +219,14 @@ class RedgifsServiceClass {
       });
       
       if (!response.ok) {
+        console.error(`Trending API failed with status: ${response.status}`);
+        const responseText = await response.text();
+        console.error('Response:', responseText);
         throw new Error(`Trending API failed: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Trending response structure:', Object.keys(data));
       
       // Handle different response formats
       let items = [];
@@ -227,6 +237,11 @@ class RedgifsServiceClass {
       } else {
         console.error('Unexpected trending response format:', Object.keys(data));
         return [];
+      }
+      
+      // Log the first item to see its structure
+      if (items.length > 0) {
+        console.log('Sample trending item:', JSON.stringify(items[0], null, 2));
       }
       
       // Map to our format
@@ -271,7 +286,7 @@ class RedgifsServiceClass {
     const item = this.currentItems[this.currentIndex];
     this.currentIndex++;
     
-    console.log('Returning item:', item.id, item.type);
+    console.log('Returning item:', item.id, item.type, item.url);
     return item;
   }
   
@@ -292,36 +307,67 @@ class RedgifsServiceClass {
     }
     
     return items.map(item => {
-      // Handle various response formats
-      const urls = item.urls || item;
-      
-      // Get the best URL available
-      let mediaUrl = '';
-      if (urls.hd) mediaUrl = urls.hd;
-      else if (urls.sd) mediaUrl = urls.sd;
-      else if (item.url) mediaUrl = item.url;
-      else if (urls.mp4) mediaUrl = urls.mp4;
-      else if (urls.gif) mediaUrl = urls.gif;
-      else if (item.content_urls?.mp4) mediaUrl = item.content_urls.mp4;
-      
-      // Skip if no usable URL
-      if (!mediaUrl) {
-        console.warn('No usable URL found for item');
+      try {
+        console.log("Processing item:", item.id);
+        
+        // Extract URLs from various possible locations in the API response
+        const urls = item.urls || {};
+        const contentUrls = item.content_urls || {};
+        
+        // Find best video URL
+        let mediaUrl = '';
+        
+        // First check HD sources
+        if (urls.hd) mediaUrl = urls.hd;
+        else if (urls.mp4) mediaUrl = urls.mp4;
+        else if (contentUrls.mp4) mediaUrl = contentUrls.mp4;
+        else if (item.mp4Url) mediaUrl = item.mp4Url;
+        else if (item.url && item.url.endsWith('.mp4')) mediaUrl = item.url;
+        
+        // Check SD sources if no HD found
+        if (!mediaUrl) {
+          if (urls.sd) mediaUrl = urls.sd;
+          else if (item.url) mediaUrl = item.url;
+        }
+        
+        // Check if the item has any URLs at all
+        if (!mediaUrl) {
+          console.warn('No usable URL found for item:', item.id);
+          return null;
+        }
+        
+        // Get thumbnail URL
+        let thumbnailUrl = '';
+        if (urls.thumbnail) thumbnailUrl = urls.thumbnail;
+        else if (urls.poster) thumbnailUrl = urls.poster;
+        else if (item.thumbnail) thumbnailUrl = item.thumbnail;
+        else if (item.poster) thumbnailUrl = item.poster;
+        else if (item.preview) thumbnailUrl = item.preview;
+        
+        // Ensure the URL is absolute
+        if (mediaUrl && !mediaUrl.startsWith('http')) {
+          mediaUrl = `https:${mediaUrl}`;
+        }
+        
+        if (thumbnailUrl && !thumbnailUrl.startsWith('http')) {
+          thumbnailUrl = `https:${thumbnailUrl}`;
+        }
+        
+        console.log(`Processed item ${item.id}: URL = ${mediaUrl}`);
+        
+        // For Redgifs, all content is treated as video for proper playback
+        return {
+          id: item.id || `redgif-${Math.random().toString(36).substring(2, 11)}`,
+          url: mediaUrl,
+          type: "video" as "video" | "image" | "gif",
+          width: item.width || 0,
+          height: item.height || 0,
+          thumbnailUrl: thumbnailUrl
+        };
+      } catch (e) {
+        console.error("Error mapping item:", e);
         return null;
       }
-      
-      // Get a thumbnail
-      const thumbnailUrl = urls.thumbnail || urls.poster || item.thumbnail || item.poster || '';
-      
-      // For Redgifs, all content is treated as video for proper playback
-      return {
-        id: item.id || `redgif-${Math.random().toString(36).substring(2, 11)}`,
-        url: mediaUrl,
-        type: "video" as "video" | "image" | "gif",
-        width: item.width || 0, 
-        height: item.height || 0,
-        thumbnailUrl: thumbnailUrl
-      };
     }).filter(Boolean) as MediaItem[]; // Remove null items
   }
 }

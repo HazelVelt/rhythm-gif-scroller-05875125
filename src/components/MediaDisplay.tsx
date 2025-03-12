@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { MediaItem } from '@/types';
@@ -17,6 +17,8 @@ const MediaDisplay: React.FC<MediaDisplayProps> = ({
   isMuted,
   onSkipNext
 }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   // Animations for media transitions
   const fadeInOut = {
     initial: { opacity: 0 },
@@ -24,6 +26,20 @@ const MediaDisplay: React.FC<MediaDisplayProps> = ({
     exit: { opacity: 0 },
     transition: { duration: 0.5 }
   };
+
+  // Effect to handle video playback whenever the media changes
+  useEffect(() => {
+    if (currentMedia?.type === 'video' && videoRef.current) {
+      console.log('Attempting to play video:', currentMedia.url);
+      
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error('Error playing video:', error);
+        });
+      }
+    }
+  }, [currentMedia]);
 
   if (loadingMedia) {
     return (
@@ -59,19 +75,40 @@ const MediaDisplay: React.FC<MediaDisplayProps> = ({
       className="absolute inset-0 flex items-center justify-center bg-black"
     >
       {currentMedia.type === 'video' ? (
-        <video
-          src={currentMedia.url}
-          autoPlay
-          loop
-          muted={isMuted}
-          className="max-w-full max-h-full object-contain"
-          playsInline
-        />
+        <>
+          <video
+            ref={videoRef}
+            src={currentMedia.url}
+            poster={currentMedia.thumbnailUrl}
+            autoPlay
+            loop
+            muted={isMuted}
+            playsInline
+            controls={false}
+            className="max-w-full max-h-full object-contain"
+            onError={(e) => {
+              console.error('Video loading error:', e);
+              // Attempt to reload or offer skip option
+              onSkipNext();
+            }}
+          />
+          {/* Fallback button if video fails to play */}
+          <Button
+            onClick={onSkipNext}
+            className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-700 opacity-70 hover:opacity-100"
+          >
+            Skip
+          </Button>
+        </>
       ) : (
         <img
           src={currentMedia.url}
           alt=""
           className="max-w-full max-h-full object-contain animate-blur-in"
+          onError={() => {
+            console.error('Image loading error');
+            onSkipNext();
+          }}
         />
       )}
     </motion.div>
