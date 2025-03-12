@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Settings } from 'lucide-react';
 import RangeSlider from '@/components/RangeSlider';
 import { PlayerSettings } from '@/types';
 
@@ -10,22 +9,20 @@ interface TimingSettingsProps {
   maxDuration: number;
   taskTime: number;
   updateSetting: <K extends keyof PlayerSettings>(key: K, value: PlayerSettings[K]) => void;
+  secondsToMinutes: (seconds: number) => number;
 }
-
-// Convert seconds to minutes for display
-const secondsToMinutes = (seconds: number) => Math.round(seconds / 60);
 
 const TimingSettings: React.FC<TimingSettingsProps> = ({
   slideDuration,
   minDuration,
   maxDuration,
   taskTime,
-  updateSetting
+  updateSetting,
+  secondsToMinutes
 }) => {
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
-        <Settings className="h-3.5 w-3.5 text-purple-400" />
+      <h3 className="text-sm font-medium text-purple-300">
         Timing Settings
       </h3>
       

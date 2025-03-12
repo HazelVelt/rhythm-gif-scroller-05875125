@@ -5,7 +5,7 @@ import { X, Settings, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import Metronome from '@/components/Metronome';
-import { ScrollerService } from '@/utils/scrollerService';
+import { RedgifsService } from '@/utils/redgifsService';
 import { MetronomeService } from '@/utils/metronomeService';
 import { MediaItem, PlayerSettings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -27,12 +27,20 @@ const Player = () => {
   const previousBpmRef = useRef<number | null>(null);
   
   // Preload images for smoother transitions
-  const preloadImage = (url: string): Promise<void> => {
+  const preloadMedia = (url: string, type: 'image' | 'video' | 'gif'): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve();
-      img.onerror = () => reject();
-      img.src = url;
+      if (type === 'image' || type === 'gif') {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => reject();
+        img.src = url;
+      } else if (type === 'video') {
+        const video = document.createElement('video');
+        video.preload = 'auto';
+        video.oncanplaythrough = () => resolve();
+        video.onerror = () => reject();
+        video.src = url;
+      }
     });
   };
   
@@ -83,23 +91,23 @@ const Player = () => {
     const loadInitialMedia = async () => {
       try {
         // Load current and next media items
-        const firstItem = await ScrollerService.getNextItem(settings);
+        const firstItem = await RedgifsService.getNextItem(settings);
         
         if (firstItem) {
-          // Preload the image
+          // Preload the media
           if (firstItem.url) {
-            await preloadImage(firstItem.url).catch(() => {
-              console.warn('Failed to preload image:', firstItem.url);
+            await preloadMedia(firstItem.url, firstItem.type).catch(() => {
+              console.warn('Failed to preload media:', firstItem.url);
             });
           }
           
           setCurrentMedia(firstItem);
           
           // Start loading the next item immediately
-          const secondItem = await ScrollerService.getNextItem(settings);
+          const secondItem = await RedgifsService.getNextItem(settings);
           if (secondItem && secondItem.url) {
-            preloadImage(secondItem.url).catch(() => {
-              console.warn('Failed to preload next image:', secondItem.url);
+            preloadMedia(secondItem.url, secondItem.type).catch(() => {
+              console.warn('Failed to preload next media:', secondItem.url);
             });
           }
           setNextMedia(secondItem);
@@ -132,21 +140,21 @@ const Player = () => {
         setNextMedia(null);
         
         // Start loading the next item
-        const newNextItem = await ScrollerService.getNextItem(settings);
+        const newNextItem = await RedgifsService.getNextItem(settings);
         if (newNextItem && newNextItem.url) {
-          preloadImage(newNextItem.url).catch(() => {
-            console.warn('Failed to preload next image:', newNextItem.url);
+          preloadMedia(newNextItem.url, newNextItem.type).catch(() => {
+            console.warn('Failed to preload next media:', newNextItem.url);
           });
         }
         setNextMedia(newNextItem);
       } else {
         // If next item isn't ready yet, load a new one
-        const newItem = await ScrollerService.getNextItem(settings);
+        const newItem = await RedgifsService.getNextItem(settings);
         if (newItem) {
           setCurrentMedia(newItem);
           
           // Start loading the next item
-          const newNextItem = await ScrollerService.getNextItem(settings);
+          const newNextItem = await RedgifsService.getNextItem(settings);
           setNextMedia(newNextItem);
         }
       }

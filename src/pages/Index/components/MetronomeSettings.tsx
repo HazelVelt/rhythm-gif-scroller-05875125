@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Settings, Volume2 } from 'lucide-react';
+import React from 'react';
+import { Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import RangeSlider from '@/components/RangeSlider';
@@ -10,36 +10,25 @@ import { PlayerSettings } from '@/types';
 interface MetronomeSettingsProps {
   slowestBpm: number;
   fastestBpm: number;
+  metronomePreviewBpm: number;
+  isPlayingMetronome: boolean;
   updateSetting: <K extends keyof PlayerSettings>(key: K, value: PlayerSettings[K]) => void;
+  handleBpmChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  toggleMetronome: () => void;
 }
 
 const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
   slowestBpm,
   fastestBpm,
-  updateSetting
+  metronomePreviewBpm,
+  isPlayingMetronome,
+  updateSetting,
+  handleBpmChange,
+  toggleMetronome
 }) => {
-  const [metronomePreviewBpm, setMetronomePreviewBpm] = useState(80);
-  const [isPlayingMetronome, setIsPlayingMetronome] = useState(false);
-  
-  // Toggle metronome playback
-  const toggleMetronome = () => {
-    setIsPlayingMetronome(!isPlayingMetronome);
-  };
-  
-  // Handle manual BPM input change
-  const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const numValue = parseInt(value);
-    
-    if (!isNaN(numValue) && numValue >= 30 && numValue <= 240) {
-      setMetronomePreviewBpm(numValue);
-    }
-  };
-  
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-300">
-        <Settings className="h-3.5 w-3.5 text-purple-400" />
+      <h3 className="text-sm font-medium text-purple-300">
         Metronome Settings
       </h3>
       
