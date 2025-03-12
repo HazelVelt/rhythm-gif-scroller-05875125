@@ -21,6 +21,7 @@ const Player = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [loadingMedia, setLoadingMedia] = useState<boolean>(false);
   
   const mediaTimerRef = useRef<number | null>(null);
   const bpmTimerRef = useRef<number | null>(null);
@@ -92,6 +93,8 @@ const Player = () => {
     
     const loadInitialMedia = async () => {
       try {
+        setLoadingMedia(true);
+        
         // Load current and next media items
         console.log("Fetching first media item with tags:", settings.tags);
         const firstItem = await RedgifsService.getNextItem(settings);
@@ -116,12 +119,15 @@ const Player = () => {
             });
           }
           setNextMedia(secondItem);
+          setLoadingMedia(false);
         } else {
           setErrorMessage('No media found for the provided tags. Please try different tags.');
+          setLoadingMedia(false);
         }
       } catch (error) {
         console.error('Error loading initial media:', error);
-        setErrorMessage('Failed to load media. Please try again.');
+        setErrorMessage('Failed to load media. Please try again with different tags.');
+        setLoadingMedia(false);
       }
     };
     
@@ -257,6 +263,8 @@ const Player = () => {
   const skipToNext = async () => {
     if (!settings) return;
     
+    setLoadingMedia(true);
+    
     // Clear existing timer
     if (mediaTimerRef.current) {
       clearTimeout(mediaTimerRef.current);
@@ -270,6 +278,7 @@ const Player = () => {
       // Start loading the next item
       const newNextItem = await RedgifsService.getNextItem(settings);
       setNextMedia(newNextItem);
+      setLoadingMedia(false);
     } else {
       // If next item isn't ready yet, load a new one
       const newItem = await RedgifsService.getNextItem(settings);
@@ -280,6 +289,7 @@ const Player = () => {
         const newNextItem = await RedgifsService.getNextItem(settings);
         setNextMedia(newNextItem);
       }
+      setLoadingMedia(false);
     }
     
     toast({
@@ -289,13 +299,27 @@ const Player = () => {
     });
   };
   
+  // Retry loading media
+  const handleRetryLoading = () => {
+    setErrorMessage(null);
+    setIsLoading(true);
+    
+    // Clear the cache to ensure fresh data
+    RedgifsService.clearCache();
+    
+    // Restart the loading timeout
+    loadingTimeoutRef.current = window.setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+  };
+  
   // Render loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-center neo p-8 rounded-xl">
           <div className="inline-block h-12 w-12 rounded-full border-4 border-t-blue-500 border-r-transparent border-l-transparent border-b-transparent animate-spin"></div>
-          <p className="mt-4 text-blue-600 dark:text-blue-400">Loading your experience...</p>
+          <p className="mt-4 text-blue-400">Loading your experience...</p>
         </div>
       </div>
     );
@@ -304,23 +328,28 @@ const Player = () => {
   // Render error state
   if (errorMessage) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-white dark:bg-gray-900">
-        <div className="text-center max-w-md mx-auto">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-black text-white">
+        <div className="text-center max-w-md mx-auto neo p-8 rounded-xl">
           <div className="mb-6 text-red-500">
             <X className="h-12 w-12 mx-auto" />
           </div>
-          <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Error</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">{errorMessage}</p>
-          <Button onClick={() => navigate('/')} className="bg-blue-600 hover:bg-blue-700 text-white">
-            Return to Settings
-          </Button>
+          <h2 className="text-xl font-semibold mb-2 text-white">Error</h2>
+          <p className="text-gray-400 mb-6">{errorMessage}</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={handleRetryLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
+              Retry
+            </Button>
+            <Button onClick={() => navigate('/')} variant="outline" className="border-gray-700 text-gray-300">
+              Return to Settings
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={playerContainerRef} className="min-h-screen flex flex-col overflow-hidden relative bg-gray-900">
+    <div ref={playerContainerRef} className="min-h-screen flex flex-col overflow-hidden relative bg-gray-950">
       {/* Header toolbar */}
       <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-2">
@@ -352,6 +381,7 @@ const Player = () => {
             size="icon" 
             onClick={skipToNext}
             className="h-10 w-10 rounded-full bg-black/50 backdrop-blur-md border border-gray-800"
+            disabled={loadingMedia}
           >
             <SkipForward className="h-5 w-5" />
           </Button>
@@ -370,7 +400,7 @@ const Player = () => {
       {/* Media display area */}
       <div className="flex-1 overflow-hidden relative">
         <AnimatePresence mode="wait">
-          {currentMedia && (
+          {currentMedia ? (
             <motion.div
               key={currentMedia.id}
               initial={{ opacity: 0 }}
@@ -386,6 +416,7 @@ const Player = () => {
                   loop
                   muted={isMuted}
                   className="max-w-full max-h-full object-contain"
+                  playsInline
                 />
               ) : (
                 <img
@@ -395,6 +426,26 @@ const Player = () => {
                 />
               )}
             </motion.div>
+          ) : loadingMedia ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
+              <div className="text-center">
+                <div className="inline-block h-12 w-12 rounded-full border-4 border-t-blue-500 border-r-transparent border-l-transparent border-b-transparent animate-spin"></div>
+                <p className="mt-4 text-gray-400">Loading media...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
+              <div className="text-center p-8">
+                <p className="text-gray-400">No media to display. Try skipping to the next item.</p>
+                <Button 
+                  onClick={skipToNext} 
+                  className="mt-4 bg-blue-600 hover:bg-blue-700"
+                  disabled={loadingMedia}
+                >
+                  Load Next Item
+                </Button>
+              </div>
+            </div>
           )}
         </AnimatePresence>
       </div>
