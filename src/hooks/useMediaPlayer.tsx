@@ -13,21 +13,43 @@ export const useMediaPlayer = (initialSettings: PlayerSettings | null) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const mediaTimerRef = useRef<number | null>(null);
+  const fetchAttemptsRef = useRef<number>(0);
 
   // Preload media for smoother transitions
   const preloadMedia = useCallback((url: string, type: 'image' | 'video' | 'gif'): Promise<void> => {
+    console.log(`Preloading ${type}:`, url);
     return new Promise((resolve, reject) => {
       if (type === 'image' || type === 'gif') {
         const img = new Image();
-        img.onload = () => resolve();
-        img.onerror = () => reject();
+        img.onload = () => {
+          console.log('Image preloaded successfully:', url);
+          resolve();
+        };
+        img.onerror = (error) => {
+          console.error('Failed to preload image:', url, error);
+          reject();
+        };
         img.src = url;
       } else if (type === 'video') {
         const video = document.createElement('video');
         video.preload = 'auto';
-        video.oncanplaythrough = () => resolve();
-        video.onerror = () => reject();
+        video.oncanplaythrough = () => {
+          console.log('Video preloaded successfully:', url);
+          resolve();
+        };
+        video.onerror = (error) => {
+          console.error('Failed to preload video:', url, error);
+          reject();
+        };
         video.src = url;
+        
+        // Set timeout to resolve anyway if it takes too long
+        setTimeout(() => {
+          if (video.readyState < 3) { // HAVE_FUTURE_DATA = 3
+            console.log('Video preload timed out, continuing anyway:', url);
+            resolve();
+          }
+        }, 5000);
       }
     });
   }, []);
@@ -44,28 +66,25 @@ export const useMediaPlayer = (initialSettings: PlayerSettings | null) => {
         console.log("Fetching first media item with tags:", settings.tags);
         const firstItem = await RedgifsService.getNextItem(settings);
         
-        if (firstItem) {
-          console.log("Got first media item:", firstItem.url);
+        if (firstItem && firstItem.url) {
+          console.log("Got first media item:", firstItem);
           
-          // Preload the media
-          if (firstItem.url) {
+          try {
+            // Preload the media
             await preloadMedia(firstItem.url, firstItem.type).catch(() => {
-              console.warn('Failed to preload media:', firstItem.url);
+              console.warn('First item preload failed but continuing:', firstItem.url);
             });
+          } catch (e) {
+            console.warn('Error during preload but continuing:', e);
           }
           
           setCurrentMedia(firstItem);
           
           // Start loading the next item immediately
           console.log("Fetching second media item");
-          const secondItem = await RedgifsService.getNextItem(settings);
-          if (secondItem && secondItem.url) {
-            preloadMedia(secondItem.url, secondItem.type).catch(() => {
-              console.warn('Failed to preload next media:', secondItem.url);
-            });
-          }
-          setNextMedia(secondItem);
+          fetchNextMediaItem();
         } else {
+          console.error('No valid media found');
           setErrorMessage('No media found for the provided tags. Please try different tags.');
         }
         
@@ -78,6 +97,39 @@ export const useMediaPlayer = (initialSettings: PlayerSettings | null) => {
     };
     
     loadInitialMedia();
+    
+    // Clear any existing fetching state
+    fetchAttemptsRef.current = 0;
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]); // Intentionally exclude preloadMedia to avoid re-runs
+
+  // Fetch the next media item
+  const fetchNextMediaItem = useCallback(async () => {
+    if (!settings) return null;
+    
+    console.log("Fetching next media item");
+    try {
+      const nextItem = await RedgifsService.getNextItem(settings);
+      
+      if (nextItem && nextItem.url) {
+        console.log("Got next media item:", nextItem);
+        
+        // Try to preload in background
+        preloadMedia(nextItem.url, nextItem.type).catch(() => {
+          console.warn('Next item preload failed but continuing');
+        });
+        
+        setNextMedia(nextItem);
+        return nextItem;
+      } else {
+        console.warn('Got empty next item');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching next item:', error);
+      return null;
+    }
   }, [settings, preloadMedia]);
 
   // Set up media rotation timer
@@ -90,8 +142,9 @@ export const useMediaPlayer = (initialSettings: PlayerSettings | null) => {
     }
     
     // Set timer for rotating media
-    mediaTimerRef.current = window.setTimeout(async () => {
-      await rotateMedia();
+    mediaTimerRef.current = window.setTimeout(() => {
+      console.log("Timer triggered for next media");
+      rotateMedia();
     }, settings.slideDuration * 1000);
     
     // Clean up
@@ -106,43 +159,52 @@ export const useMediaPlayer = (initialSettings: PlayerSettings | null) => {
   const rotateMedia = async () => {
     if (!settings) return;
     
+    console.log("Rotating to next media");
+    setLoadingMedia(true);
+    
     // If we have a next item ready, use it
     if (nextMedia) {
+      console.log("Using preloaded next item:", nextMedia.id);
       setCurrentMedia(nextMedia);
       setNextMedia(null);
       
-      // Start loading the next item
-      const newNextItem = await RedgifsService.getNextItem(settings);
-      if (newNextItem && newNextItem.url) {
-        preloadMedia(newNextItem.url, newNextItem.type).catch(() => {
-          console.warn('Failed to preload next media:', newNextItem.url);
-        });
-      }
-      setNextMedia(newNextItem);
+      // Start loading the next item for future use
+      fetchNextMediaItem();
     } else {
+      console.log("No preloaded item, fetching new one");
       // If next item isn't ready yet, load a new one
-      setLoadingMedia(true);
       const newItem = await RedgifsService.getNextItem(settings);
       
-      if (newItem) {
+      if (newItem && newItem.url) {
+        console.log("Got new current item:", newItem.id);
         setCurrentMedia(newItem);
         
-        // Start loading the next item
-        const newNextItem = await RedgifsService.getNextItem(settings);
-        setNextMedia(newNextItem);
+        // Start loading the next item for future use
+        fetchNextMediaItem();
       } else {
+        console.error("Failed to get new media item");
         // If we couldn't get a new item, show error
         setErrorMessage('Unable to load more media. Please try different tags.');
+        
+        // Attempt to retry
+        if (fetchAttemptsRef.current < 3) {
+          fetchAttemptsRef.current++;
+          console.log(`Retry attempt ${fetchAttemptsRef.current}/3`);
+          RedgifsService.clearCache();
+          setTimeout(() => rotateMedia(), 1000);
+          return;
+        }
       }
-      
-      setLoadingMedia(false);
     }
+    
+    setLoadingMedia(false);
   };
 
   // Skip to next media
   const skipToNext = async () => {
     if (!settings) return;
     
+    console.log("User skipped to next media");
     setLoadingMedia(true);
     
     // Clear existing timer
@@ -157,16 +219,16 @@ export const useMediaPlayer = (initialSettings: PlayerSettings | null) => {
       description: "Loading next content...",
       duration: 2000,
     });
-    
-    setLoadingMedia(false);
   };
 
   // Retry loading media
   const retryLoading = () => {
+    console.log("Retrying media loading");
     setErrorMessage(null);
     
     // Clear the cache to ensure fresh data
     RedgifsService.clearCache();
+    fetchAttemptsRef.current = 0;
     
     // Reload media if we have settings
     if (settings) {
@@ -174,10 +236,9 @@ export const useMediaPlayer = (initialSettings: PlayerSettings | null) => {
         setLoadingMedia(true);
         const firstItem = await RedgifsService.getNextItem(settings);
         
-        if (firstItem) {
+        if (firstItem && firstItem.url) {
           setCurrentMedia(firstItem);
-          const secondItem = await RedgifsService.getNextItem(settings);
-          setNextMedia(secondItem);
+          fetchNextMediaItem();
         } else {
           setErrorMessage('Still unable to load media. Please try different tags.');
         }
