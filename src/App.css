@@ -154,3 +154,42 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #444450;
 }
+
+/* Tag input styling */
+.tag-container {
+  background-color: #1E1E24;
+  border: 1px solid #2A2A30;
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.tag-item {
+  display: inline-flex;
+  align-items: center;
+  background-color: #2A2A35;
+  color: #B8C0E0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 2px;
+  font-size: 0.85rem;
+}
+
+.tag-remove {
+  margin-left: 4px;
+  color: #8888A0;
+  cursor: pointer;
+}
+
+.tag-remove:hover {
+  color: #B8C0E0;
+}
+
+.tag-input {
+  background-color: transparent;
+  border: none;
+  color: #E0E0E0;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  min-width: 60px;
+  outline: none;
+}

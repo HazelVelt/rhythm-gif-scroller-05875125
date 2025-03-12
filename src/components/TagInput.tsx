@@ -1,5 +1,5 @@
 
-import { useState, useEffect, KeyboardEvent } from 'react';
+import { useState, KeyboardEvent } from 'react';
 import { X, Plus, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -54,19 +54,20 @@ const TagInput = ({
   };
 
   return (
-    <div className={`bg-gray-100 dark:bg-gray-800 rounded-md p-1.5 ${className}`}>
+    <div className={`bg-gray-800/50 dark:bg-gray-900/50 rounded-md p-1.5 border border-gray-700 ${className}`}>
       <div className="flex flex-wrap gap-1.5 p-1">
         {value.map((tag, index) => (
           <Badge 
             key={`${tag}-${index}`}
             variant="secondary"
-            className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 flex items-center gap-1 pl-2 pr-1"
+            className="bg-gray-700 text-blue-100 flex items-center gap-1 pl-2 pr-1 border border-gray-600"
           >
+            <Tag className="h-3 w-3 text-blue-300 mr-1" />
             {tag}
             <button
               type="button"
               onClick={() => removeTag(index)}
-              className="ml-1 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 p-0.5 focus:outline-none"
+              className="ml-1 rounded-full hover:bg-gray-600 p-0.5 focus:outline-none"
               aria-label={`Remove ${tag} tag`}
             >
               <X className="h-3 w-3" />
@@ -83,7 +84,7 @@ const TagInput = ({
             onBlur={handleAddTag}
             placeholder={value.length < maxTags ? placeholder : ''}
             disabled={value.length >= maxTags}
-            className="border-none bg-transparent px-1 py-1 text-sm focus:ring-0 focus-visible:ring-0 w-full"
+            className="border-none bg-transparent px-1 py-1 text-sm focus:ring-0 focus-visible:ring-0 w-full text-gray-200"
             autoFocus={autoFocus}
           />
           
@@ -91,14 +92,19 @@ const TagInput = ({
             <button
               type="button"
               onClick={handleAddTag}
-              className="flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 p-1 
-                         transition-colors duration-200 ml-1 focus:outline-none"
+              className="flex items-center justify-center rounded-full hover:bg-gray-600 p-1 
+                       transition-colors duration-200 ml-1 focus:outline-none"
               aria-label="Add tag"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 text-blue-300" />
             </button>
           )}
         </div>
+      </div>
+      <div className="px-2 pt-1 text-xs text-blue-300/70">
+        {value.length === 0 ? 
+          "Add tags to find specific content" : 
+          `${value.length}/${maxTags} tags - Press Enter or comma to add`}
       </div>
     </div>
   );

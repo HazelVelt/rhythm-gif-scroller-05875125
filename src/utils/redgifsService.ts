@@ -26,15 +26,13 @@ class RedgifsServiceClass {
     }
     
     try {
-      // Make a request to get a temporary token using the correct endpoint for guest users
+      // According to Redgifs API docs, the temporary token endpoint changed
+      // Using the correct endpoint for guest authentication
       const response = await fetch(`${this.API_URL}/auth/temporary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          app_id: 'web_app' // Required for guest token
-        })
+        }
       });
       
       if (!response.ok) {
@@ -44,10 +42,11 @@ class RedgifsServiceClass {
       
       const data = await response.json();
       
-      // Save the token and set expiry to 1 hour from now (or use the actual expiry if available)
+      // Save the token and set expiry to 1 hour from now
       this.temporaryToken = data.token;
       this.tokenExpiry = now + 3600000; // 1 hour in milliseconds
       
+      console.log('Successfully obtained temporary token');
       return this.temporaryToken;
     } catch (error) {
       console.error('Error getting temporary token:', error);
